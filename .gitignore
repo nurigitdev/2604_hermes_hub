@@ -3,3 +3,14 @@ __pycache__/
 *.py[cod]
 .env
 .env.*
+.coverage
+data/
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+tests/tmp/
+*.sqlite
+*.sqlite3
+*.egg-info/
+build/
+dist/
