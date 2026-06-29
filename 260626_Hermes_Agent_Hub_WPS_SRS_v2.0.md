@@ -413,6 +413,7 @@ Hub에 등록된 Hermes Agent 목록.
 | ip_addr | TEXT | 최근 접속 IP |
 | source | TEXT | Agent 연결 source. 예: gateway / collector |
 | status | TEXT | ACTIVE / UNMAPPED / DISABLED |
+| last_heartbeat_status | TEXT NULL | 마지막 heartbeat runtime status. 예: running / idle |
 | last_seen_at | DATETIME | 최종 접속 시간 |
 | created_at | DATETIME | 최초 등록 시간 |
 | updated_at | DATETIME | 수정 시간 |
@@ -693,9 +694,12 @@ Request:
   "agent_uid": "agent_20260625_0001",
   "profile_name": "kim-teamlead",
   "source": "gateway",
-  "status": "running"
+  "ip_addr": "192.168.0.25",
+  "runtime_status": "running"
 }
 ```
+
+`runtime_status`는 Agent lifecycle 상태인 `ACTIVE / UNMAPPED / DISABLED`와 구분되는 heartbeat 시점의 실행 상태이다.
 
 Response:
 

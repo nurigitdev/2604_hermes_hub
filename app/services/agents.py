@@ -18,9 +18,19 @@ from app.services.agent_tokens import (
 
 AGENT_ACTIVE_STATUS = "ACTIVE"
 AGENT_UNMAPPED_STATUS = "UNMAPPED"
+AGENT_DISABLED_STATUS = "DISABLED"
+HEARTBEAT_ALLOWED_SCOPES = {AGENT_ACTIVE_SCOPE, AGENT_UNMAPPED_SCOPE}
 
 
 class InvalidEnrollmentTokenError(Exception):
+    pass
+
+
+class InvalidAgentTokenError(Exception):
+    pass
+
+
+class AgentAccessForbiddenError(Exception):
     pass
 
 
@@ -29,6 +39,18 @@ class EnrolledAgent:
     agent: HermesAgent
     api_token: str
     api_token_record: AgentToken
+
+
+@dataclass(frozen=True)
+class AuthenticatedAgent:
+    agent: HermesAgent
+    token_record: AgentToken
+
+
+@dataclass(frozen=True)
+class AgentHeartbeat:
+    agent: HermesAgent
+    last_seen_at: datetime
 
 
 def enroll_agent(
@@ -88,6 +110,55 @@ def enroll_agent(
     session.refresh(agent)
     session.refresh(api_token_record)
     return EnrolledAgent(agent=agent, api_token=api_token, api_token_record=api_token_record)
+
+
+def authenticate_agent_api_token(session: Session, *, token: str) -> AuthenticatedAgent:
+    token_record = session.scalar(
+        select(AgentToken).where(AgentToken.token_hash == hash_token(token))
+    )
+    if token_record is None:
+        raise InvalidAgentTokenError
+    if token_record.token_type != API_TOKEN_TYPE:
+        raise InvalidAgentTokenError
+    if not token_record.is_active:
+        raise InvalidAgentTokenError
+    if token_record.agent_id is None:
+        raise InvalidAgentTokenError
+    if token_record.scope not in HEARTBEAT_ALLOWED_SCOPES:
+        raise AgentAccessForbiddenError
+
+    agent = session.get(HermesAgent, token_record.agent_id)
+    if agent is None:
+        raise InvalidAgentTokenError
+    if agent.status == AGENT_DISABLED_STATUS:
+        raise AgentAccessForbiddenError
+
+    return AuthenticatedAgent(agent=agent, token_record=token_record)
+
+
+def record_agent_heartbeat(
+    session: Session,
+    *,
+    authenticated_agent: AuthenticatedAgent,
+    agent_uid: str,
+    profile_name: str,
+    source: str,
+    ip_addr: str,
+    runtime_status: str,
+) -> AgentHeartbeat:
+    agent = authenticated_agent.agent
+    if agent.agent_uid != agent_uid:
+        raise AgentAccessForbiddenError
+
+    last_seen_at = utc_now()
+    agent.profile_name = profile_name
+    agent.source = source
+    agent.ip_addr = ip_addr
+    agent.last_heartbeat_status = runtime_status
+    agent.last_seen_at = last_seen_at
+    session.commit()
+    session.refresh(agent)
+    return AgentHeartbeat(agent=agent, last_seen_at=last_seen_at)
 
 
 def get_usable_enrollment_token(

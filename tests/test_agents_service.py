@@ -17,11 +17,16 @@ from app.services.agent_tokens import (
 )
 from app.services.agents import (
     AGENT_ACTIVE_STATUS,
+    AGENT_DISABLED_STATUS,
     AGENT_UNMAPPED_STATUS,
+    AgentAccessForbiddenError,
+    InvalidAgentTokenError,
     InvalidEnrollmentTokenError,
+    authenticate_agent_api_token,
     enroll_agent,
     get_usable_enrollment_token,
     is_expired,
+    record_agent_heartbeat,
 )
 
 
@@ -234,3 +239,202 @@ def test_is_expired_handles_none_future_and_past_values() -> None:
     assert is_expired(datetime(2026, 6, 30, tzinfo=UTC), now=now) is False
     assert is_expired(datetime(2026, 6, 28), now=now) is True
     assert is_expired(datetime.now(UTC) - timedelta(days=1)) is True
+
+
+def test_authenticate_agent_api_token_accepts_active_agent(db_session: Session) -> None:
+    issued_token = issue_enrollment_token(
+        db_session,
+        owner_email="agent.owner@example.com",
+    )
+    enrolled_agent = enroll_agent(
+        db_session,
+        enrollment_token=issued_token.token,
+        profile_name="kim-teamlead",
+        hostname="KIM-PC",
+        ip_addr="192.168.0.25",
+        source="gateway",
+    )
+
+    authenticated_agent = authenticate_agent_api_token(
+        db_session,
+        token=enrolled_agent.api_token,
+    )
+
+    assert authenticated_agent.agent.id == enrolled_agent.agent.id
+    assert authenticated_agent.token_record.id == enrolled_agent.api_token_record.id
+
+
+def test_authenticate_agent_api_token_accepts_unmapped_agent(db_session: Session) -> None:
+    enrolled_agent = enroll_agent(
+        db_session,
+        enrollment_token=None,
+        profile_name="unknown-profile",
+        hostname="UNKNOWN-PC",
+        ip_addr="192.168.0.26",
+        source="collector",
+    )
+
+    authenticated_agent = authenticate_agent_api_token(
+        db_session,
+        token=enrolled_agent.api_token,
+    )
+
+    assert authenticated_agent.agent.status == AGENT_UNMAPPED_STATUS
+    assert authenticated_agent.token_record.scope == AGENT_UNMAPPED_SCOPE
+
+
+def test_authenticate_agent_api_token_rejects_unknown_token(db_session: Session) -> None:
+    with pytest.raises(InvalidAgentTokenError):
+        authenticate_agent_api_token(db_session, token="hub_api_missing")
+
+
+def test_authenticate_agent_api_token_rejects_enrollment_token(db_session: Session) -> None:
+    issued_token = issue_enrollment_token(
+        db_session,
+        owner_email="agent.owner@example.com",
+    )
+
+    with pytest.raises(InvalidAgentTokenError):
+        authenticate_agent_api_token(db_session, token=issued_token.token)
+
+
+def test_authenticate_agent_api_token_rejects_inactive_api_token(db_session: Session) -> None:
+    enrolled_agent = enroll_agent(
+        db_session,
+        enrollment_token=None,
+        profile_name="unknown-profile",
+        hostname="UNKNOWN-PC",
+        ip_addr="192.168.0.26",
+        source="collector",
+    )
+    enrolled_agent.api_token_record.is_active = False
+    db_session.flush()
+
+    with pytest.raises(InvalidAgentTokenError):
+        authenticate_agent_api_token(db_session, token=enrolled_agent.api_token)
+
+
+def test_authenticate_agent_api_token_rejects_missing_agent_id(db_session: Session) -> None:
+    token = "hub_api_without_agent"
+    db_session.add(
+        AgentToken(
+            token_hash=hash_token(token),
+            token_type=API_TOKEN_TYPE,
+            scope=AGENT_ACTIVE_SCOPE,
+            owner_email="agent.owner@example.com",
+            agent_id=None,
+            is_active=True,
+        )
+    )
+    db_session.flush()
+
+    with pytest.raises(InvalidAgentTokenError):
+        authenticate_agent_api_token(db_session, token=token)
+
+
+def test_authenticate_agent_api_token_rejects_missing_agent(db_session: Session) -> None:
+    token = "hub_api_missing_agent"
+    db_session.add(
+        AgentToken(
+            token_hash=hash_token(token),
+            token_type=API_TOKEN_TYPE,
+            scope=AGENT_ACTIVE_SCOPE,
+            owner_email="agent.owner@example.com",
+            agent_id=999,
+            is_active=True,
+        )
+    )
+    db_session.flush()
+
+    with pytest.raises(InvalidAgentTokenError):
+        authenticate_agent_api_token(db_session, token=token)
+
+
+def test_authenticate_agent_api_token_rejects_forbidden_scope(db_session: Session) -> None:
+    enrolled_agent = enroll_agent(
+        db_session,
+        enrollment_token=None,
+        profile_name="unknown-profile",
+        hostname="UNKNOWN-PC",
+        ip_addr="192.168.0.26",
+        source="collector",
+    )
+    enrolled_agent.api_token_record.scope = ENROLL_AGENT_SCOPE
+    db_session.flush()
+
+    with pytest.raises(AgentAccessForbiddenError):
+        authenticate_agent_api_token(db_session, token=enrolled_agent.api_token)
+
+
+def test_authenticate_agent_api_token_rejects_disabled_agent(db_session: Session) -> None:
+    enrolled_agent = enroll_agent(
+        db_session,
+        enrollment_token=None,
+        profile_name="unknown-profile",
+        hostname="UNKNOWN-PC",
+        ip_addr="192.168.0.26",
+        source="collector",
+    )
+    enrolled_agent.agent.status = AGENT_DISABLED_STATUS
+    db_session.flush()
+
+    with pytest.raises(AgentAccessForbiddenError):
+        authenticate_agent_api_token(db_session, token=enrolled_agent.api_token)
+
+
+def test_record_agent_heartbeat_updates_agent_snapshot(db_session: Session) -> None:
+    enrolled_agent = enroll_agent(
+        db_session,
+        enrollment_token=None,
+        profile_name="unknown-profile",
+        hostname="UNKNOWN-PC",
+        ip_addr="192.168.0.26",
+        source="collector",
+    )
+    authenticated_agent = authenticate_agent_api_token(
+        db_session,
+        token=enrolled_agent.api_token,
+    )
+
+    heartbeat = record_agent_heartbeat(
+        db_session,
+        authenticated_agent=authenticated_agent,
+        agent_uid=enrolled_agent.agent.agent_uid,
+        profile_name="kim-teamlead",
+        source="gateway",
+        ip_addr="192.168.0.25",
+        runtime_status="running",
+    )
+
+    assert heartbeat.agent.profile_name == "kim-teamlead"
+    assert heartbeat.agent.source == "gateway"
+    assert heartbeat.agent.ip_addr == "192.168.0.25"
+    assert heartbeat.agent.last_heartbeat_status == "running"
+    assert heartbeat.agent.last_seen_at is not None
+    assert heartbeat.last_seen_at.tzinfo is not None
+
+
+def test_record_agent_heartbeat_rejects_agent_uid_mismatch(db_session: Session) -> None:
+    enrolled_agent = enroll_agent(
+        db_session,
+        enrollment_token=None,
+        profile_name="unknown-profile",
+        hostname="UNKNOWN-PC",
+        ip_addr="192.168.0.26",
+        source="collector",
+    )
+    authenticated_agent = authenticate_agent_api_token(
+        db_session,
+        token=enrolled_agent.api_token,
+    )
+
+    with pytest.raises(AgentAccessForbiddenError):
+        record_agent_heartbeat(
+            db_session,
+            authenticated_agent=authenticated_agent,
+            agent_uid="agent_wrong",
+            profile_name="kim-teamlead",
+            source="gateway",
+            ip_addr="192.168.0.25",
+            runtime_status="running",
+        )
