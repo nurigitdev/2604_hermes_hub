@@ -279,6 +279,14 @@ Token scope는 다음 기준을 따른다.
 
 UNMAPPED Agent에는 제한된 API token을 발급할 수 있다. 이 token은 Admin이 Agent를 확인하고 매핑할 때까지 heartbeat 외 ingest 기능에는 사용할 수 없다.
 
+Admin이 UNMAPPED Agent를 사용자 email과 매핑하면 해당 Agent의 기존 API token scope는
+`AGENT_UNMAPPED`에서 `AGENT_ACTIVE`로 갱신한다. 이때 Agent는 새로운 token을 다시
+발급받지 않고 기존 token으로 message/event ingest를 수행할 수 있다.
+
+Admin이 Agent를 `DISABLED`로 전환하면 Agent 상태가 우선 적용되어 해당 Agent의 모든
+Agent API 호출은 `403 Forbidden`으로 거부된다. 구현은 Agent 상태만으로 거부해도 되며,
+운영 정책상 필요한 경우 연결된 API token의 `is_active`를 함께 false로 전환할 수 있다.
+
 ---
 
 ## 8. Hermes Agent 연동 방식 검토
@@ -854,7 +862,8 @@ Response:
 
 #### PATCH `/admin/api/agents/{agent_uid}`
 
-Agent 표시 이름, owner email, status 등 관리 필드를 수정한다.
+Agent 표시 이름을 수정한다. 사용자 email 매핑과 status 변경은 audit 의미가 분명하도록
+각각 `map`, `disable` 전용 API로 처리한다.
 
 Request:
 
@@ -867,6 +876,7 @@ Request:
 #### POST `/admin/api/agents/{agent_uid}/map`
 
 UNMAPPED Agent를 사용자 email에 매핑하고 상태를 `ACTIVE`로 전환한다.
+연결된 API token scope는 `AGENT_ACTIVE`로 갱신한다.
 
 Request:
 
@@ -879,6 +889,8 @@ Request:
 #### POST `/admin/api/agents/{agent_uid}/disable`
 
 Agent를 `DISABLED` 상태로 전환하고 이후 Agent API 호출을 거부한다.
+Agent 상태가 `DISABLED`이면 token 자체가 active 상태여도 heartbeat, message ingest,
+event ingest는 모두 `403 Forbidden`으로 거부되어야 한다.
 
 ---
 
