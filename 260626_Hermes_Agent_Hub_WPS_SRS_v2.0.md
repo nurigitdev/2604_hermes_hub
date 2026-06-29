@@ -411,6 +411,7 @@ Hub에 등록된 Hermes Agent 목록.
 | owner_email | TEXT | 매핑된 사용자 email |
 | hostname | TEXT | Agent PC hostname |
 | ip_addr | TEXT | 최근 접속 IP |
+| source | TEXT | Agent 연결 source. 예: gateway / collector |
 | status | TEXT | ACTIVE / UNMAPPED / DISABLED |
 | last_seen_at | DATETIME | 최종 접속 시간 |
 | created_at | DATETIME | 최초 등록 시간 |
@@ -428,7 +429,7 @@ Agent 등록 및 API 호출을 위한 token 관리 테이블.
 | token_hash | TEXT UNIQUE | token hash |
 | token_type | TEXT | ENROLLMENT / API |
 | scope | TEXT | ENROLL_AGENT / AGENT_ACTIVE / AGENT_UNMAPPED |
-| owner_email | TEXT | 대상 email |
+| owner_email | TEXT NULL | 대상 email. UNMAPPED API token은 NULL 가능 |
 | agent_id | INTEGER NULL | 연결된 Agent |
 | expires_at | DATETIME NULL | 만료일 |
 | used_at | DATETIME NULL | 사용일 |

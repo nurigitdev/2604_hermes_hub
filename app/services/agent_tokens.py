@@ -7,7 +7,10 @@ from app.core.tokens import generate_enrollment_token, hash_token
 from app.models.agent_token import AgentToken
 
 ENROLLMENT_TOKEN_TYPE = "ENROLLMENT"
+API_TOKEN_TYPE = "API"
 ENROLL_AGENT_SCOPE = "ENROLL_AGENT"
+AGENT_ACTIVE_SCOPE = "AGENT_ACTIVE"
+AGENT_UNMAPPED_SCOPE = "AGENT_UNMAPPED"
 
 
 @dataclass(frozen=True)

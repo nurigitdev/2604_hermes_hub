@@ -14,7 +14,7 @@ class AgentToken(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     token_type: Mapped[str] = mapped_column(String(32), nullable=False)
     scope: Mapped[str] = mapped_column(String(32), nullable=False)
-    owner_email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    owner_email: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
     agent_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
