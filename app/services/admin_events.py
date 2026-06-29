@@ -21,6 +21,12 @@ class AdminEventSearchResult:
     total: int
 
 
+@dataclass(frozen=True)
+class AdminEventDetail:
+    event: AgentEvent
+    agent: HermesAgent
+
+
 def search_admin_events(
     session: Session,
     *,
@@ -74,6 +80,18 @@ def search_admin_events(
         items=[AdminEventRow(event=row[0], agent=row[1]) for row in rows],
         total=total,
     )
+
+
+def get_admin_event_detail(session: Session, *, event_id: int) -> AdminEventDetail | None:
+    row = session.execute(
+        select(AgentEvent, HermesAgent)
+        .join(HermesAgent, AgentEvent.agent_id == HermesAgent.id)
+        .where(AgentEvent.id == event_id)
+    ).one_or_none()
+    if row is None:
+        return None
+
+    return AdminEventDetail(event=row[0], agent=row[1])
 
 
 def apply_event_filters(

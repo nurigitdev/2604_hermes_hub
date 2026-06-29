@@ -182,8 +182,51 @@ def test_admin_event_search_supports_pagination(
     assert body["items"][0]["id"] in {first["event_id"], second["event_id"]}
 
 
+def test_admin_can_get_event_detail(test_app: FastAPI, db_session: Session) -> None:
+    seed_admin(db_session)
+    created = create_ingested_event(test_app, db_session)
+
+    response = anyio.run(
+        login_and_get_admin_events,
+        test_app,
+        f"/admin/api/events/{created['event_id']}",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": created["event_id"],
+        "occurred_at": "2026-06-25T09:31:15",
+        "agent_uid": created["agent_uid"],
+        "profile_name": "kim-teamlead",
+        "owner_email": "agent.owner@example.com",
+        "event_type": "agent:end",
+        "severity": "INFO",
+        "summary": "Agent response completed",
+        "raw_payload": {"duration_ms": 1200},
+    }
+
+
+def test_admin_event_detail_returns_404_for_missing_event(
+    test_app: FastAPI,
+    db_session: Session,
+) -> None:
+    seed_admin(db_session)
+
+    response = anyio.run(login_and_get_admin_events, test_app, "/admin/api/events/999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Event not found"}
+
+
 def test_admin_events_require_admin_session(test_app: FastAPI) -> None:
     response = anyio.run(get_admin_events_without_login, test_app)
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Authentication required"}
+
+
+def test_admin_event_detail_requires_admin_session(test_app: FastAPI) -> None:
+    response = anyio.run(get_admin_events_without_login, test_app, "/admin/api/events/999")
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Authentication required"}

@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from app.models.agent_event import AgentEvent
 from app.models.hermes_agent import HermesAgent
 from app.services.admin_events import (
+    AdminEventDetail,
     AdminEventRow,
+    get_admin_event_detail,
     normalize_limit,
     search_admin_events,
 )
@@ -104,6 +106,19 @@ def test_search_admin_events_matches_keyword_against_event_type(db_session: Sess
 
     assert result.total == 1
     assert result.items == [AdminEventRow(event=event, agent=agent)]
+
+
+def test_get_admin_event_detail_returns_event_and_agent(db_session: Session) -> None:
+    agent = make_agent(db_session)
+    event = make_event(db_session, agent_id=agent.id)
+
+    detail = get_admin_event_detail(db_session, event_id=event.id)
+
+    assert detail == AdminEventDetail(event=event, agent=agent)
+
+
+def test_get_admin_event_detail_returns_none_for_missing_event(db_session: Session) -> None:
+    assert get_admin_event_detail(db_session, event_id=999) is None
 
 
 def test_normalize_limit_uses_default_for_invalid_limit() -> None:
