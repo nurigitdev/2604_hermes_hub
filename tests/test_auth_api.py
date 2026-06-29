@@ -31,6 +31,8 @@ def test_login_api_accepts_valid_admin(test_app: FastAPI, db_session: Session) -
 
     assert response.status_code == 200
     assert response.json() == {"ok": True, "role": "ADMIN"}
+    assert "hermes_hub_session" in response.cookies
+    assert "HttpOnly" in response.headers["set-cookie"]
 
 
 def test_login_api_rejects_wrong_password(test_app: FastAPI, db_session: Session) -> None:

@@ -9,6 +9,8 @@ def test_settings_defaults_are_development_safe() -> None:
     assert settings.env == "development"
     assert settings.database_url.startswith("sqlite:///")
     assert settings.test_database_url.startswith("sqlite:///")
+    assert settings.session_cookie_name == "hermes_hub_session"
+    assert settings.session_cookie_max_age_seconds == 86_400
     assert settings.admin_email == "admin@company.com"
     assert settings.admin_name == "Hub Admin"
     assert settings.admin_password == "change-me-admin-password"

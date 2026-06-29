@@ -5,12 +5,16 @@ from pydantic import EmailStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
+DEFAULT_SESSION_COOKIE_NAME = "hermes_hub_session"
+
 
 class Settings(BaseSettings):
     env: str = "development"
     database_url: str = "sqlite:///./data/hermes_hub.sqlite3"
     test_database_url: str = "sqlite:///./tests/tmp/hermes_hub_test.sqlite3"
     secret_key: str = Field(default="change-me-in-local-env", min_length=8)
+    session_cookie_name: str = DEFAULT_SESSION_COOKIE_NAME
+    session_cookie_max_age_seconds: int = 86_400
     admin_email: EmailStr = "admin@company.com"
     admin_name: str = "Hub Admin"
     admin_password: str = Field(default="change-me-admin-password", min_length=12)

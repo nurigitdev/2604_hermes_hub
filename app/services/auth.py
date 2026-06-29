@@ -5,6 +5,17 @@ from app.core.security import verify_password
 from app.models.user import User
 
 
+def get_active_admin_by_id(session: Session, *, user_id: int) -> User | None:
+    user = session.get(User, user_id)
+    if user is None:
+        return None
+    if not user.is_active:
+        return None
+    if user.role != "ADMIN":
+        return None
+    return user
+
+
 def authenticate_admin(session: Session, *, email: str, password: str) -> User | None:
     user = session.scalar(select(User).where(User.email == email))
     if user is None:
