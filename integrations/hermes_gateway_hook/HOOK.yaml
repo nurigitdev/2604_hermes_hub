@@ -1,0 +1,21 @@
+name: hermes-agent-hub
+description: Forward Hermes Gateway lifecycle events to Hermes Agent Hub.
+events:
+  - agent:start
+  - agent:end
+  - agent:step
+  - command:*
+handler:
+  command: python3 handler.py
+  input: stdin-json
+environment:
+  required:
+    - HERMES_HUB_URL
+    - HERMES_AGENT_UID
+    - HERMES_API_TOKEN
+  optional:
+    - HERMES_HOOK_PROFILE_NAME
+    - HERMES_HOOK_HOSTNAME
+    - HERMES_HOOK_IP_ADDR
+    - HERMES_HOOK_SOURCE
+    - HERMES_HOOK_SESSION_KEY

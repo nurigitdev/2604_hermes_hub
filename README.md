@@ -67,3 +67,23 @@ Optional probe environment variables:
 The smoke client sends heartbeat, request message, response message, and lifecycle
 event payloads. The response message uses the request message id as
 `parent_message_id`, which exercises the Message Detail pair contract.
+
+## Hermes Gateway Hook PoC
+
+The Gateway Hook PoC maps Hermes hook JSON into Hub message/event ingest payloads
+while preserving the original hook body in `raw_payload`.
+
+```bash
+export HERMES_HUB_URL="http://127.0.0.1:8000"
+export HERMES_AGENT_UID="agent_..."
+export HERMES_API_TOKEN="hub_api_..."
+
+python3 integrations/hermes_gateway_hook/handler.py \
+  --dry-run \
+  --event-file sample-hook-payload.json
+```
+
+Copy `integrations/hermes_gateway_hook/HOOK.yaml` and `handler.py` into the
+Hermes Gateway hook directory when testing with the real Gateway runtime. The
+handler accepts stdin JSON by default and supports `--dry-run` for payload mapping
+inspection before sending anything to Hub.
