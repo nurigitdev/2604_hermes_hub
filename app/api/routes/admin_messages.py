@@ -6,10 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_admin
 from app.db.session import get_db_session
+from app.models.agent_message import AgentMessage
 from app.models.user import User
 from app.schemas.admin_messages import (
     AdminMessageDetailResponse,
     AdminMessageListItem,
+    AdminMessageRelatedItem,
     AdminMessageSearchResponse,
 )
 from app.services.admin_messages import (
@@ -103,4 +105,20 @@ def admin_message_detail_to_response(detail: AdminMessageDetail) -> AdminMessage
         content=detail.message.content,
         tool_calls_json=detail.message.tool_calls_json,
         raw_payload=parse_raw_payload(detail.message.raw_payload),
+        related_messages=[
+            admin_related_message_to_item(message) for message in detail.related_messages
+        ],
+    )
+
+
+def admin_related_message_to_item(message: AgentMessage) -> AdminMessageRelatedItem:
+    return AdminMessageRelatedItem(
+        id=message.id,
+        occurred_at=message.occurred_at,
+        request_id=message.request_id,
+        parent_message_id=message.parent_message_id,
+        role=message.role,
+        direction=message.direction,
+        event_type=message.event_type,
+        content_preview=content_preview(message.content),
     )

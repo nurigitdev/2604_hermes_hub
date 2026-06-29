@@ -82,8 +82,26 @@ def test_ingest_message_creates_session_and_message(db_session: Session) -> None
     assert message.direction == "INBOUND"
     assert message.role == "user"
     assert message.event_type == "message"
+    assert message.parent_message_id is None
     assert message.content_hash == hash_content("오늘 작업 내용을 정리해줘")
     assert json.loads(message.raw_payload) == {"telegram_update_id": 100}
+
+
+def test_ingest_message_stores_parent_message_id(db_session: Session) -> None:
+    enrolled_agent, authenticated_agent = active_authenticated_agent(db_session)
+    parent = ingest_message(
+        db_session,
+        authenticated_agent=authenticated_agent,
+        **message_kwargs(enrolled_agent.agent.agent_uid),
+    )
+    child_kwargs = message_kwargs(enrolled_agent.agent.agent_uid)
+    child_kwargs["idempotency_key"] = "msg_agent_1_resp_1"
+    child_kwargs["external_message_id"] = "telegram_123456789_101"
+    child_kwargs["parent_message_id"] = parent.message.id
+
+    child = ingest_message(db_session, authenticated_agent=authenticated_agent, **child_kwargs)
+
+    assert child.message.parent_message_id == parent.message.id
 
 
 def test_ingest_message_reuses_existing_session(db_session: Session) -> None:

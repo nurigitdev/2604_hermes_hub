@@ -229,7 +229,57 @@ def test_admin_can_get_message_detail(test_app: FastAPI, db_session: Session) ->
         "content": "오늘 작업 내용을 정리해줘",
         "tool_calls_json": None,
         "raw_payload": {"telegram_update_id": 100},
+        "related_messages": [],
     }
+
+
+def test_admin_message_detail_includes_related_messages(
+    test_app: FastAPI,
+    db_session: Session,
+) -> None:
+    seed_admin(db_session)
+    created = create_ingested_message(test_app, db_session)
+    parent_message_id = created["message_id"]
+    message = db_session.get(AgentMessage, parent_message_id)
+    assert message is not None
+    related = AgentMessage(
+        agent_id=message.agent_id,
+        session_id=message.session_id,
+        external_message_id="telegram_123456789_101",
+        idempotency_key="related-idempotency-key",
+        direction="OUTBOUND",
+        role="assistant",
+        event_type="agent:end",
+        content="정리 결과입니다",
+        content_hash="related-content-hash",
+        source=message.source,
+        request_id=message.request_id,
+        parent_message_id=message.id,
+        raw_payload="{}",
+        occurred_at=message.occurred_at,
+    )
+    db_session.add(related)
+    db_session.commit()
+
+    response = anyio.run(
+        login_and_get_admin_messages,
+        test_app,
+        f"/admin/api/messages/{parent_message_id}",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["related_messages"] == [
+        {
+            "id": related.id,
+            "occurred_at": "2026-06-25T09:30:00",
+            "request_id": "req_abc123",
+            "parent_message_id": parent_message_id,
+            "role": "assistant",
+            "direction": "OUTBOUND",
+            "event_type": "agent:end",
+            "content_preview": "정리 결과입니다",
+        }
+    ]
 
 
 def test_admin_message_detail_rejects_missing_message(

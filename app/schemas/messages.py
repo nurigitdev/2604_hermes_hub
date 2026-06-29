@@ -15,6 +15,7 @@ class MessageIngestRequest(BaseModel):
     role: str
     content: str
     request_id: str | None = None
+    parent_message_id: int | None = None
     occurred_at: datetime | None = None
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 

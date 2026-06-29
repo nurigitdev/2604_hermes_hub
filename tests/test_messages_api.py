@@ -101,7 +101,37 @@ def test_active_agent_can_ingest_message(
     assert message.source == "telegram"
     assert message.role == "user"
     assert message.event_type == "message"
+    assert message.parent_message_id is None
     assert json.loads(message.raw_payload) == {"telegram_update_id": 100}
+
+
+def test_message_ingest_accepts_parent_message_id(
+    test_app: FastAPI,
+    db_session: Session,
+) -> None:
+    enroll_body = enroll_active_agent(test_app, db_session)
+    parent = anyio.run(
+        post_message_ingest,
+        test_app,
+        message_payload(enroll_body["agent_uid"]),
+        enroll_body["api_token"],
+    )
+    child_payload = message_payload(enroll_body["agent_uid"])
+    child_payload["idempotency_key"] = "child-idempotency-key"
+    child_payload["external_message_id"] = "telegram_123456789_101"
+    child_payload["parent_message_id"] = parent.json()["message_id"]
+
+    response = anyio.run(
+        post_message_ingest,
+        test_app,
+        child_payload,
+        enroll_body["api_token"],
+    )
+    message = db_session.get(AgentMessage, response.json()["message_id"])
+
+    assert response.status_code == 200
+    assert message is not None
+    assert message.parent_message_id == parent.json()["message_id"]
 
 
 def test_message_ingest_header_idempotency_key_overrides_body(

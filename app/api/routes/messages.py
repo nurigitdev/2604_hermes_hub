@@ -33,6 +33,7 @@ def ingest(
             role=request.role,
             content=request.content,
             request_id=request.request_id,
+            parent_message_id=request.parent_message_id,
             occurred_at=request.occurred_at,
             raw_payload=request.raw_payload,
         )

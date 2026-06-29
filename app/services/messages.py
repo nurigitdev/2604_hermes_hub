@@ -36,6 +36,7 @@ def ingest_message(
     request_id: str | None,
     occurred_at: datetime | None,
     raw_payload: dict[str, Any],
+    parent_message_id: int | None = None,
 ) -> MessageIngestResult:
     ensure_message_ingest_allowed(authenticated_agent, agent_uid=agent_uid)
 
@@ -68,6 +69,7 @@ def ingest_message(
         content_hash=hash_content(content),
         source=source,
         request_id=request_id,
+        parent_message_id=parent_message_id,
         raw_payload=dump_json(raw_payload),
         occurred_at=occurred_at,
     )

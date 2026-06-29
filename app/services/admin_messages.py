@@ -32,6 +32,7 @@ class AdminMessageDetail:
     message: AgentMessage
     agent: HermesAgent
     agent_session: AgentSession | None
+    related_messages: list[AgentMessage]
 
 
 def search_admin_messages(
@@ -105,7 +106,36 @@ def get_admin_message_detail(session: Session, *, message_id: int) -> AdminMessa
     if row is None:
         return None
 
-    return AdminMessageDetail(message=row[0], agent=row[1], agent_session=row[2])
+    message = row[0]
+    return AdminMessageDetail(
+        message=message,
+        agent=row[1],
+        agent_session=row[2],
+        related_messages=find_related_messages(session, message=message),
+    )
+
+
+def find_related_messages(session: Session, *, message: AgentMessage) -> list[AgentMessage]:
+    conditions = []
+    if message.request_id is not None:
+        conditions.append(AgentMessage.request_id == message.request_id)
+    if message.parent_message_id is not None:
+        conditions.append(AgentMessage.id == message.parent_message_id)
+    conditions.append(AgentMessage.parent_message_id == message.id)
+
+    rows = session.scalars(
+        select(AgentMessage)
+        .where(
+            AgentMessage.agent_id == message.agent_id,
+            AgentMessage.id != message.id,
+            or_(*conditions),
+        )
+        .order_by(
+            AgentMessage.occurred_at.asc().nullslast(),
+            AgentMessage.id.asc(),
+        )
+    ).all()
+    return list(rows)
 
 
 def apply_message_filters(

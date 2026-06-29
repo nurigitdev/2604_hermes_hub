@@ -9,6 +9,7 @@ from app.services.admin_messages import (
     AdminMessageDetail,
     AdminMessageRow,
     content_preview,
+    find_related_messages,
     get_admin_message_detail,
     normalize_limit,
     parse_raw_payload,
@@ -54,21 +55,29 @@ def make_message(
     agent_id: int,
     session_id: int | None,
     content: str = "hello message",
+    external_message_id: str = "external-1",
+    idempotency_key: str = "idempotency-1",
+    request_id: str | None = "req-1",
+    parent_message_id: int | None = None,
+    role: str = "user",
+    direction: str = "INBOUND",
+    occurred_at: datetime | None = datetime(2026, 6, 25, 9, 30, tzinfo=UTC),
 ) -> AgentMessage:
     message = AgentMessage(
         agent_id=agent_id,
         session_id=session_id,
-        external_message_id="external-1",
-        idempotency_key="idempotency-1",
-        direction="INBOUND",
-        role="user",
+        external_message_id=external_message_id,
+        idempotency_key=idempotency_key,
+        direction=direction,
+        role=role,
         event_type="message",
         content=content,
         content_hash="content-hash",
         source="telegram",
-        request_id="req-1",
+        request_id=request_id,
+        parent_message_id=parent_message_id,
         raw_payload='{"ok":true}',
-        occurred_at=datetime(2026, 6, 25, 9, 30, tzinfo=UTC),
+        occurred_at=occurred_at,
     )
     db_session.add(message)
     db_session.flush()
@@ -93,7 +102,12 @@ def test_get_admin_message_detail_returns_message_agent_and_session(db_session: 
 
     detail = get_admin_message_detail(db_session, message_id=message.id)
 
-    assert detail == AdminMessageDetail(message=message, agent=agent, agent_session=agent_session)
+    assert detail == AdminMessageDetail(
+        message=message,
+        agent=agent,
+        agent_session=agent_session,
+        related_messages=[],
+    )
 
 
 def test_get_admin_message_detail_returns_none_for_missing_message(db_session: Session) -> None:
@@ -106,7 +120,82 @@ def test_get_admin_message_detail_allows_missing_session(db_session: Session) ->
 
     detail = get_admin_message_detail(db_session, message_id=message.id)
 
-    assert detail == AdminMessageDetail(message=message, agent=agent, agent_session=None)
+    assert detail == AdminMessageDetail(
+        message=message,
+        agent=agent,
+        agent_session=None,
+        related_messages=[],
+    )
+
+
+def test_get_admin_message_detail_includes_related_messages(db_session: Session) -> None:
+    agent = make_agent(db_session)
+    other_agent = make_agent(db_session, agent_uid="agent_20260629_0002")
+    agent_session = make_session(db_session, agent_id=agent.id)
+    message = make_message(db_session, agent_id=agent.id, session_id=agent_session.id)
+    by_request_id = make_message(
+        db_session,
+        agent_id=agent.id,
+        session_id=agent_session.id,
+        content="assistant response",
+        external_message_id="external-2",
+        idempotency_key="idempotency-2",
+        role="assistant",
+        direction="OUTBOUND",
+        occurred_at=datetime(2026, 6, 25, 9, 31, tzinfo=UTC),
+    )
+    by_parent_id = make_message(
+        db_session,
+        agent_id=agent.id,
+        session_id=agent_session.id,
+        content="child response",
+        external_message_id="external-3",
+        idempotency_key="idempotency-3",
+        request_id=None,
+        parent_message_id=message.id,
+        role="assistant",
+        direction="OUTBOUND",
+        occurred_at=datetime(2026, 6, 25, 9, 32, tzinfo=UTC),
+    )
+    make_message(
+        db_session,
+        agent_id=other_agent.id,
+        session_id=None,
+        external_message_id="external-4",
+        idempotency_key="idempotency-4",
+    )
+
+    detail = get_admin_message_detail(db_session, message_id=message.id)
+
+    assert detail == AdminMessageDetail(
+        message=message,
+        agent=agent,
+        agent_session=agent_session,
+        related_messages=[by_request_id, by_parent_id],
+    )
+
+
+def test_find_related_messages_can_resolve_parent_message(db_session: Session) -> None:
+    agent = make_agent(db_session)
+    parent = make_message(
+        db_session,
+        agent_id=agent.id,
+        session_id=None,
+        external_message_id="external-parent",
+        idempotency_key="idempotency-parent",
+        request_id=None,
+    )
+    child = make_message(
+        db_session,
+        agent_id=agent.id,
+        session_id=None,
+        external_message_id="external-child",
+        idempotency_key="idempotency-child",
+        request_id=None,
+        parent_message_id=parent.id,
+    )
+
+    assert find_related_messages(db_session, message=child) == [parent]
 
 
 def test_normalize_limit_uses_default_for_invalid_limit() -> None:

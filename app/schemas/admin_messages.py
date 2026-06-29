@@ -21,6 +21,17 @@ class AdminMessageSearchResponse(BaseModel):
     total: int
 
 
+class AdminMessageRelatedItem(BaseModel):
+    id: int
+    occurred_at: datetime | None
+    request_id: str | None
+    parent_message_id: int | None
+    role: str
+    direction: str
+    event_type: str
+    content_preview: str
+
+
 class AdminMessageDetailResponse(BaseModel):
     id: int
     agent_uid: str
@@ -32,3 +43,4 @@ class AdminMessageDetailResponse(BaseModel):
     content: str
     tool_calls_json: str | None
     raw_payload: dict[str, Any]
+    related_messages: list[AdminMessageRelatedItem]
