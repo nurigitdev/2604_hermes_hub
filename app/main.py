@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.api.routes.admin import router as admin_router
 from app.api.routes.admin_agents import router as admin_agents_router
+from app.api.routes.admin_dashboard import router as admin_dashboard_router
 from app.api.routes.admin_events import router as admin_events_router
 from app.api.routes.admin_messages import router as admin_messages_router
 from app.api.routes.agents import router as agents_router
@@ -14,6 +15,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Hermes Agent Hub")
     app.include_router(admin_router)
     app.include_router(admin_agents_router)
+    app.include_router(admin_dashboard_router)
     app.include_router(admin_events_router)
     app.include_router(admin_messages_router)
     app.include_router(agents_router)
