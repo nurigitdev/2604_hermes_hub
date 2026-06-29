@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     test_database_url: str = "sqlite:///./tests/tmp/hermes_hub_test.sqlite3"
     secret_key: str = Field(default="change-me-in-local-env", min_length=8)
     admin_email: EmailStr = "admin@company.com"
+    admin_name: str = "Hub Admin"
+    admin_password: str = Field(default="change-me-admin-password", min_length=12)
 
     model_config = SettingsConfigDict(
         env_file=".env",

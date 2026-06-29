@@ -10,6 +10,8 @@ def test_settings_defaults_are_development_safe() -> None:
     assert settings.database_url.startswith("sqlite:///")
     assert settings.test_database_url.startswith("sqlite:///")
     assert settings.admin_email == "admin@company.com"
+    assert settings.admin_name == "Hub Admin"
+    assert settings.admin_password == "change-me-admin-password"
 
 
 def test_sqlite_file_path_returns_path_for_file_database() -> None:

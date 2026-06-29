@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
+from app.db.schema import create_schema, drop_schema
 from app.db.session import create_engine_for_url, create_session_factory
 
 
@@ -21,9 +22,11 @@ def test_database_url(tmp_db_path: Path) -> str:
 @pytest.fixture()
 def test_engine(test_database_url: str) -> Generator[Engine, None, None]:
     engine = create_engine_for_url(test_database_url)
+    create_schema(engine)
     try:
         yield engine
     finally:
+        drop_schema(engine)
         engine.dispose()
 
 

@@ -20,6 +20,7 @@ SQLite file URLs are used for local development and tests:
 
 - `HERMES_HUB_DATABASE_URL` for the local development database
 - `HERMES_HUB_TEST_DATABASE_URL` for isolated test database defaults
+- `HERMES_HUB_ADMIN_EMAIL` and `HERMES_HUB_ADMIN_PASSWORD` for the initial admin seed
 
 ## Quality Commands
 
