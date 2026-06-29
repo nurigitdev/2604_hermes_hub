@@ -727,6 +727,11 @@ Idempotency-Key: msg_agent_20260625_0001_req_abc123_user_001
 ```
 
 `Idempotency-Key` header는 권장 사항이며, request body의 `idempotency_key`로도 전달할 수 있다. 둘 다 전달되면 header 값을 우선한다.
+저장 시에도 header 값이 effective `agent_messages.idempotency_key`가 된다.
+
+`session_key`는 Hub DB의 `agent_sessions.hermes_session_id`로 저장한다. Hub는
+`(agent_id, source, session_key)` 조합으로 기존 session을 조회하고, 없으면 새
+`agent_sessions` row를 생성한 뒤 `agent_messages.session_id`에 연결한다.
 
 Request:
 
