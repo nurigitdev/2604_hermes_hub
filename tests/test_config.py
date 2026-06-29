@@ -22,3 +22,7 @@ def test_sqlite_file_path_returns_path_for_file_database() -> None:
 
 def test_sqlite_file_path_ignores_memory_database() -> None:
     assert sqlite_file_path("sqlite:///:memory:") is None
+
+
+def test_sqlite_file_path_ignores_non_sqlite_database() -> None:
+    assert sqlite_file_path("postgresql://user:password@localhost/hermes_hub") is None

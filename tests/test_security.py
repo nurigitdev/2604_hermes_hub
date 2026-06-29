@@ -29,3 +29,10 @@ def test_verify_password_rejects_wrong_password() -> None:
 
 def test_verify_password_rejects_malformed_hash() -> None:
     assert not verify_password("change-me-admin-password", "not-a-valid-hash")
+
+
+def test_verify_password_rejects_unsupported_algorithm() -> None:
+    password_hash = hash_password("change-me-admin-password")
+    unsupported_hash = password_hash.replace("pbkdf2_sha256$", "unsupported$", 1)
+
+    assert not verify_password("change-me-admin-password", unsupported_hash)
