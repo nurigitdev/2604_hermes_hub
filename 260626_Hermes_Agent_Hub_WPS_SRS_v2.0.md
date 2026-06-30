@@ -1162,6 +1162,11 @@ Actions:
 - Agent 비활성화
 - 상세 보기
 
+v2.0 초기 Agent Registry Web View는 `/admin/agents`에서 제공한다. 화면은
+`/admin/api/agents`를 사용해 status, owner email, source, keyword 필터를 적용하며,
+각 row에서 display name 수정, owner email mapping, disable action을 수행할 수 있어야 한다.
+상세 보기는 이후 slice에서 확장한다.
+
 ### 11.4 Message Explorer 화면
 
 Admin은 수집된 message를 검색하고 확인할 수 있어야 한다.

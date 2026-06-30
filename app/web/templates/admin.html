@@ -45,7 +45,7 @@
       </section>
     </main>
 
-    <main class="app-shell" data-view="dashboard" hidden>
+    <main class="app-shell" data-view="app" hidden>
       <aside class="sidebar">
         <div class="brand-row">
           <div class="brand-mark" aria-hidden="true">H</div>
@@ -56,18 +56,18 @@
         </div>
 
         <nav class="nav-list" aria-label="Admin navigation">
-          <a class="nav-item active" href="/admin/dashboard">Dashboard</a>
-          <button class="nav-item" disabled type="button">Agents</button>
+          <a class="nav-item" data-nav="dashboard" href="/admin/dashboard">Dashboard</a>
+          <a class="nav-item" data-nav="agents" href="/admin/agents">Agents</a>
           <button class="nav-item" disabled type="button">Messages</button>
           <button class="nav-item" disabled type="button">Events</button>
         </nav>
       </aside>
 
-      <section class="workspace" aria-labelledby="dashboard-title">
+      <section class="workspace" aria-live="polite">
         <header class="topbar">
           <div>
-            <p class="eyebrow">Admin</p>
-            <h1 id="dashboard-title">Dashboard</h1>
+            <p class="eyebrow" data-page-eyebrow>Admin</p>
+            <h1 data-page-title>Dashboard</h1>
           </div>
           <div class="topbar-actions">
             <span class="admin-identity" data-admin-identity>Loading</span>
@@ -76,67 +76,125 @@
           </div>
         </header>
 
-        <section class="status-strip" aria-label="Hub status">
-          <div>
-            <span class="status-dot status-dot-ok"></span>
-            <span>Hub API session</span>
-          </div>
-          <div>
-            <span class="status-dot status-dot-warn"></span>
-            <span>Gateway hook PoC</span>
-          </div>
-          <div>
-            <span class="status-dot status-dot-muted"></span>
-            <span>SQLite backend</span>
-          </div>
+        <section data-page="dashboard">
+          <section class="status-strip" aria-label="Hub status">
+            <div>
+              <span class="status-dot status-dot-ok"></span>
+              <span>Hub API session</span>
+            </div>
+            <div>
+              <span class="status-dot status-dot-warn"></span>
+              <span>Gateway hook PoC</span>
+            </div>
+            <div>
+              <span class="status-dot status-dot-muted"></span>
+              <span>SQLite backend</span>
+            </div>
+          </section>
+
+          <section class="metric-grid" aria-label="Dashboard summary">
+            <article class="metric-tile">
+              <span>Total agents</span>
+              <strong data-metric="total_agent_count">-</strong>
+            </article>
+            <article class="metric-tile">
+              <span>Active agents</span>
+              <strong data-metric="active_agent_count">-</strong>
+            </article>
+            <article class="metric-tile">
+              <span>Unmapped agents</span>
+              <strong data-metric="unmapped_agent_count">-</strong>
+            </article>
+            <article class="metric-tile">
+              <span>Messages today</span>
+              <strong data-metric="messages_today_count">-</strong>
+            </article>
+            <article class="metric-tile">
+              <span>Events, 24h</span>
+              <strong data-metric="events_last_24h_count">-</strong>
+            </article>
+            <article class="metric-tile warning">
+              <span>Error events, 24h</span>
+              <strong data-metric="error_events_last_24h_count">-</strong>
+            </article>
+          </section>
+
+          <section class="dashboard-band">
+            <div>
+              <h2>Collection overview</h2>
+              <p data-dashboard-note>Waiting for dashboard data.</p>
+            </div>
+            <dl class="summary-list">
+              <div>
+                <dt>Agent coverage</dt>
+                <dd data-summary="agent_coverage">-</dd>
+              </div>
+              <div>
+                <dt>Message/event flow</dt>
+                <dd data-summary="flow_count">-</dd>
+              </div>
+              <div>
+                <dt>Error pressure</dt>
+                <dd data-summary="error_pressure">-</dd>
+              </div>
+            </dl>
+          </section>
         </section>
 
-        <section class="metric-grid" aria-label="Dashboard summary">
-          <article class="metric-tile">
-            <span>Total agents</span>
-            <strong data-metric="total_agent_count">-</strong>
-          </article>
-          <article class="metric-tile">
-            <span>Active agents</span>
-            <strong data-metric="active_agent_count">-</strong>
-          </article>
-          <article class="metric-tile">
-            <span>Unmapped agents</span>
-            <strong data-metric="unmapped_agent_count">-</strong>
-          </article>
-          <article class="metric-tile">
-            <span>Messages today</span>
-            <strong data-metric="messages_today_count">-</strong>
-          </article>
-          <article class="metric-tile">
-            <span>Events, 24h</span>
-            <strong data-metric="events_last_24h_count">-</strong>
-          </article>
-          <article class="metric-tile warning">
-            <span>Error events, 24h</span>
-            <strong data-metric="error_events_last_24h_count">-</strong>
-          </article>
-        </section>
+        <section class="registry-page" data-page="agents" hidden>
+          <h2 class="visually-hidden">Agent Registry</h2>
+          <form class="filter-bar" data-agent-filters>
+            <label>
+              Status
+              <select name="status">
+                <option value="">All</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="UNMAPPED">UNMAPPED</option>
+                <option value="DISABLED">DISABLED</option>
+              </select>
+            </label>
+            <label>
+              Source
+              <input name="source" placeholder="gateway" type="text" />
+            </label>
+            <label>
+              Owner
+              <input name="owner_email" placeholder="owner@example.com" type="email" />
+            </label>
+            <label>
+              Keyword
+              <input name="keyword" placeholder="profile, host, uid" type="search" />
+            </label>
+            <div class="filter-actions">
+              <button class="primary-button" type="submit">Search</button>
+              <button class="secondary-button" data-reset-agent-filters type="button">Reset</button>
+            </div>
+          </form>
 
-        <section class="dashboard-band">
-          <div>
-            <h2>Collection overview</h2>
-            <p data-dashboard-note>Waiting for dashboard data.</p>
-          </div>
-          <dl class="summary-list">
-            <div>
-              <dt>Agent coverage</dt>
-              <dd data-summary="agent_coverage">-</dd>
-            </div>
-            <div>
-              <dt>Message/event flow</dt>
-              <dd data-summary="flow_count">-</dd>
-            </div>
-            <div>
-              <dt>Error pressure</dt>
-              <dd data-summary="error_pressure">-</dd>
-            </div>
-          </dl>
+          <section class="registry-summary" aria-label="Agent registry status">
+            <strong><span data-agents-count>0</span> agents</strong>
+            <span data-agents-status>Waiting for agents.</span>
+          </section>
+
+          <section class="table-wrap" aria-label="Agent registry">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Agent</th>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Runtime</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Last seen</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody data-agent-rows>
+                <tr>
+                  <td colspan="6">Loading agents.</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
         </section>
       </section>
     </main>

@@ -28,3 +28,8 @@ def admin_login() -> FileResponse:
 @router.get("/admin/dashboard")
 def admin_dashboard() -> FileResponse:
     return FileResponse(ADMIN_SHELL_PATH)
+
+
+@router.get("/admin/agents")
+def admin_agents() -> FileResponse:
+    return FileResponse(ADMIN_SHELL_PATH)

@@ -21,6 +21,15 @@
   display: none !important;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 html {
   min-width: 320px;
 }
@@ -36,7 +45,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -163,6 +173,14 @@ input:focus {
 .ghost-button {
   background: transparent;
   color: var(--muted);
+}
+
+.danger-button {
+  border-radius: 7px;
+  background: #f7e7e3;
+  color: var(--danger);
+  padding: 0 14px;
+  font-weight: 800;
 }
 
 .form-error {
@@ -343,6 +361,133 @@ input:focus {
   font-weight: 800;
 }
 
+.filter-bar {
+  display: grid;
+  grid-template-columns: 150px 150px minmax(180px, 1fr) minmax(200px, 1fr) auto;
+  gap: 12px;
+  margin: 18px 0;
+  align-items: end;
+}
+
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fbfcfa;
+  color: var(--ink);
+  padding: 12px 13px;
+}
+
+select:focus {
+  border-color: var(--accent);
+  outline: 3px solid rgba(33, 110, 78, 0.14);
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.registry-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  padding: 12px 0;
+}
+
+.registry-summary strong {
+  color: var(--ink);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.data-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 14px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  background: #fbfcfa;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.data-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.cell-stack {
+  display: grid;
+  gap: 4px;
+}
+
+.cell-stack span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.status-active {
+  background: #dff1e8;
+  color: var(--accent);
+}
+
+.status-unmapped {
+  background: #f4eadc;
+  color: var(--warn);
+}
+
+.status-disabled {
+  background: #ecefed;
+  color: var(--muted);
+}
+
+.row-actions {
+  display: grid;
+  max-width: 420px;
+  grid-template-columns: minmax(130px, 1fr) auto;
+  gap: 8px;
+}
+
+.row-actions input {
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.row-actions .danger-button {
+  width: fit-content;
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 840px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -374,8 +519,17 @@ input:focus {
   }
 
   .metric-grid,
-  .dashboard-band {
+  .dashboard-band,
+  .filter-bar {
     grid-template-columns: 1fr;
+  }
+
+  .filter-actions {
+    flex-wrap: wrap;
+  }
+
+  .filter-actions > button {
+    flex: 1 1 120px;
   }
 }
 
@@ -398,6 +552,69 @@ input:focus {
   }
 
   .summary-list div {
+    grid-template-columns: 1fr;
+  }
+
+  .table-wrap {
+    overflow-x: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .data-table {
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0 12px;
+  }
+
+  .data-table thead {
+    display: none;
+  }
+
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table tr {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 12px;
+  }
+
+  .data-table td {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 12px;
+    border-bottom: 0;
+    padding: 8px 0;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .data-table td[colspan]::before {
+    content: none;
+  }
+
+  .data-table td[data-label="Actions"] {
+    grid-template-columns: 1fr;
+  }
+
+  .data-table td[data-label="Actions"]::before {
+    display: block;
+  }
+
+  .row-actions {
     grid-template-columns: 1fr;
   }
 }

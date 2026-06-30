@@ -41,12 +41,21 @@ def test_admin_dashboard_serves_web_shell(test_app: FastAPI) -> None:
 
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert 'data-view="dashboard"' in response.text
+    assert 'data-view="app"' in response.text
     assert "Dashboard" in response.text
+
+
+def test_admin_agents_serves_web_shell(test_app: FastAPI) -> None:
+    response = anyio.run(get_path, test_app, "/admin/agents")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert 'data-page="agents"' in response.text
+    assert "Agent Registry" in response.text
 
 
 def test_admin_static_assets_are_served(test_app: FastAPI) -> None:
     response = anyio.run(get_path, test_app, "/admin/static/admin.js")
 
     assert response.status_code == 200
-    assert "window.location.pathname" in response.text
+    assert "loadAgents" in response.text
