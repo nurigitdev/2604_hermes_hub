@@ -87,3 +87,13 @@ Copy `integrations/hermes_gateway_hook/HOOK.yaml` and `handler.py` into the
 Hermes Gateway hook directory when testing with the real Gateway runtime. The
 handler accepts stdin JSON by default and supports `--dry-run` for payload mapping
 inspection before sending anything to Hub.
+
+## Admin Web Shell
+
+The first Admin screen is served directly by FastAPI:
+
+- Login: `http://127.0.0.1:8000/admin/login`
+- Dashboard: `http://127.0.0.1:8000/admin/dashboard`
+
+The dashboard uses the existing admin session cookie and reads
+`/admin/api/dashboard/summary` for the first-screen metrics.

@@ -9,3 +9,7 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     ok: bool
     role: str
+
+
+class LogoutResponse(BaseModel):
+    ok: bool

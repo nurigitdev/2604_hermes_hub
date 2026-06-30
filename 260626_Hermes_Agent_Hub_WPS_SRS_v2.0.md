@@ -1134,6 +1134,12 @@ Admin Dashboard는 다음 정보를 요약한다.
 - 최근 24시간 event 수
 - 오류 event 수
 
+v2.0 초기 Admin Web Shell은 `/admin/login`과 `/admin/dashboard`를 우선 제공한다.
+Dashboard 첫 화면은 기존 Admin session cookie를 사용해 `/admin/api/me`와
+`/admin/api/dashboard/summary`를 조회하며, 인증되지 않은 사용자는 login 화면으로 이동한다.
+초기 화면은 Dashboard 요약 지표를 보여주는 데 집중하고, Agent Registry / Message Explorer /
+Event Explorer는 이후 slice에서 같은 shell navigation 안에 확장한다.
+
 ### 11.3 Agent Registry 화면
 
 Agent 목록은 다음 필드를 표시한다.

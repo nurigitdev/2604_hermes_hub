@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hermes Agent Hub</title>
+    <link rel="stylesheet" href="/admin/static/admin.css" />
+  </head>
+  <body>
+    <main class="auth-page" data-view="login" hidden>
+      <section class="login-panel" aria-labelledby="login-title">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">H</div>
+          <div>
+            <p class="eyebrow">Hermes Agent Hub</p>
+            <h1 id="login-title">Admin sign in</h1>
+          </div>
+        </div>
+
+        <form class="login-form" data-login-form>
+          <label>
+            Email
+            <input
+              autocomplete="username"
+              inputmode="email"
+              name="email"
+              placeholder="admin@company.com"
+              required
+              type="email"
+            />
+          </label>
+          <label>
+            Password
+            <input
+              autocomplete="current-password"
+              name="password"
+              placeholder="Password"
+              required
+              type="password"
+            />
+          </label>
+          <p class="form-error" data-login-error role="alert" hidden></p>
+          <button class="primary-button" type="submit">Sign in</button>
+        </form>
+      </section>
+    </main>
+
+    <main class="app-shell" data-view="dashboard" hidden>
+      <aside class="sidebar">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">H</div>
+          <div>
+            <p class="eyebrow">Hermes</p>
+            <p class="brand-name">Agent Hub</p>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="Admin navigation">
+          <a class="nav-item active" href="/admin/dashboard">Dashboard</a>
+          <button class="nav-item" disabled type="button">Agents</button>
+          <button class="nav-item" disabled type="button">Messages</button>
+          <button class="nav-item" disabled type="button">Events</button>
+        </nav>
+      </aside>
+
+      <section class="workspace" aria-labelledby="dashboard-title">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Admin</p>
+            <h1 id="dashboard-title">Dashboard</h1>
+          </div>
+          <div class="topbar-actions">
+            <span class="admin-identity" data-admin-identity>Loading</span>
+            <button class="secondary-button" data-refresh-dashboard type="button">Refresh</button>
+            <button class="ghost-button" data-logout type="button">Sign out</button>
+          </div>
+        </header>
+
+        <section class="status-strip" aria-label="Hub status">
+          <div>
+            <span class="status-dot status-dot-ok"></span>
+            <span>Hub API session</span>
+          </div>
+          <div>
+            <span class="status-dot status-dot-warn"></span>
+            <span>Gateway hook PoC</span>
+          </div>
+          <div>
+            <span class="status-dot status-dot-muted"></span>
+            <span>SQLite backend</span>
+          </div>
+        </section>
+
+        <section class="metric-grid" aria-label="Dashboard summary">
+          <article class="metric-tile">
+            <span>Total agents</span>
+            <strong data-metric="total_agent_count">-</strong>
+          </article>
+          <article class="metric-tile">
+            <span>Active agents</span>
+            <strong data-metric="active_agent_count">-</strong>
+          </article>
+          <article class="metric-tile">
+            <span>Unmapped agents</span>
+            <strong data-metric="unmapped_agent_count">-</strong>
+          </article>
+          <article class="metric-tile">
+            <span>Messages today</span>
+            <strong data-metric="messages_today_count">-</strong>
+          </article>
+          <article class="metric-tile">
+            <span>Events, 24h</span>
+            <strong data-metric="events_last_24h_count">-</strong>
+          </article>
+          <article class="metric-tile warning">
+            <span>Error events, 24h</span>
+            <strong data-metric="error_events_last_24h_count">-</strong>
+          </article>
+        </section>
+
+        <section class="dashboard-band">
+          <div>
+            <h2>Collection overview</h2>
+            <p data-dashboard-note>Waiting for dashboard data.</p>
+          </div>
+          <dl class="summary-list">
+            <div>
+              <dt>Agent coverage</dt>
+              <dd data-summary="agent_coverage">-</dd>
+            </div>
+            <div>
+              <dt>Message/event flow</dt>
+              <dd data-summary="flow_count">-</dd>
+            </div>
+            <div>
+              <dt>Error pressure</dt>
+              <dd data-summary="error_pressure">-</dd>
+            </div>
+          </dl>
+        </section>
+      </section>
+    </main>
+
+    <script src="/admin/static/admin.js" defer></script>
+  </body>
+</html>

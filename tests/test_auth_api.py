@@ -15,6 +15,13 @@ async def post_login(app: FastAPI, payload: dict[str, str]) -> httpx.Response:
         return await client.post("/auth/login", json=payload)
 
 
+async def post_login_then_logout(app: FastAPI, payload: dict[str, str]) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        await client.post("/auth/login", json=payload)
+        return await client.post("/auth/logout")
+
+
 def test_login_api_accepts_valid_admin(test_app: FastAPI, db_session: Session) -> None:
     settings = Settings(
         admin_email="admin@example.com",
@@ -51,6 +58,26 @@ def test_login_api_rejects_wrong_password(test_app: FastAPI, db_session: Session
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Invalid email or password"}
+
+
+def test_logout_api_clears_admin_session_cookie(test_app: FastAPI, db_session: Session) -> None:
+    settings = Settings(
+        admin_email="admin@example.com",
+        admin_name="Admin User",
+        admin_password="change-me-admin-password",
+    )
+    seed_admin_user(db_session, settings)
+
+    response = anyio.run(
+        post_login_then_logout,
+        test_app,
+        {"email": "admin@example.com", "password": "change-me-admin-password"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+    assert "hermes_hub_session" in response.headers["set-cookie"]
+    assert "Max-Age=0" in response.headers["set-cookie"]
 
 
 def test_login_api_rejects_unknown_email(test_app: FastAPI) -> None:

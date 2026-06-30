@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.core.session import create_session_token
 from app.db.session import get_db_session
-from app.schemas.auth import LoginRequest, LoginResponse
+from app.schemas.auth import LoginRequest, LoginResponse, LogoutResponse
 from app.services.auth import authenticate_admin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -37,3 +37,17 @@ def login(
         secure=settings.env == "production",
     )
     return LoginResponse(ok=True, role=user.role)
+
+
+@router.post("/logout", response_model=LogoutResponse)
+def logout(
+    response: Response,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> LogoutResponse:
+    response.delete_cookie(
+        key=settings.session_cookie_name,
+        httponly=True,
+        samesite="lax",
+        secure=settings.env == "production",
+    )
+    return LogoutResponse(ok=True)
