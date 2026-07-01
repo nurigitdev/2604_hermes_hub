@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_admin
+from app.core.message_types import InvalidMessageTypeError
 from app.db.session import get_db_session
 from app.models.agent_message import AgentMessage
 from app.models.user import User
@@ -17,6 +18,7 @@ from app.schemas.admin_messages import (
 from app.services.admin_messages import (
     AdminMessageDetail,
     AdminMessageRow,
+    agent_message_type_name,
     content_preview,
     get_admin_message_detail,
     parse_raw_payload,
@@ -39,23 +41,33 @@ def search_messages(
     source: str | None = None,
     role: str | None = None,
     event_type: str | None = None,
+    message_type: str | None = None,
+    message_type_code: int | None = None,
     keyword: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> AdminMessageSearchResponse:
-    result = search_admin_messages(
-        session,
-        date_from=date_from,
-        date_to=date_to,
-        agent_uid=agent_uid,
-        owner_email=owner_email,
-        source=source,
-        role=role,
-        event_type=event_type,
-        keyword=keyword,
-        limit=limit,
-        offset=offset,
-    )
+    try:
+        result = search_admin_messages(
+            session,
+            date_from=date_from,
+            date_to=date_to,
+            agent_uid=agent_uid,
+            owner_email=owner_email,
+            source=source,
+            role=role,
+            event_type=event_type,
+            message_type=message_type,
+            message_type_code=message_type_code,
+            keyword=keyword,
+            limit=limit,
+            offset=offset,
+        )
+    except InvalidMessageTypeError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
     return AdminMessageSearchResponse(
         items=[admin_message_row_to_item(row) for row in result.items],
         total=result.total,
@@ -87,6 +99,8 @@ def admin_message_row_to_item(row: AdminMessageRow) -> AdminMessageListItem:
         source=row.message.source,
         role=row.message.role,
         event_type=row.message.event_type,
+        message_type_code=row.message.message_type_code,
+        message_type=agent_message_type_name(row.message),
         content_preview=content_preview(row.message.content),
     )
 
@@ -102,7 +116,10 @@ def admin_message_detail_to_response(detail: AdminMessageDetail) -> AdminMessage
         parent_message_id=detail.message.parent_message_id,
         role=detail.message.role,
         direction=detail.message.direction,
+        message_type_code=detail.message.message_type_code,
+        message_type=agent_message_type_name(detail.message),
         content=detail.message.content,
+        assistant_response=detail.message.assistant_response,
         tool_calls_json=detail.message.tool_calls_json,
         raw_payload=parse_raw_payload(detail.message.raw_payload),
         related_messages=[
@@ -120,5 +137,7 @@ def admin_related_message_to_item(message: AgentMessage) -> AdminMessageRelatedI
         role=message.role,
         direction=message.direction,
         event_type=message.event_type,
+        message_type_code=message.message_type_code,
+        message_type=agent_message_type_name(message),
         content_preview=content_preview(message.content),
     )

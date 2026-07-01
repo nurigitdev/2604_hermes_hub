@@ -71,7 +71,11 @@ event payloads. The response message uses the request message id as
 ## Hermes Gateway Hook PoC
 
 The Gateway Hook PoC maps Hermes hook JSON into Hub message/event ingest payloads
-while preserving the original hook body in `raw_payload`.
+while preserving the original hook body in `raw_payload`. Hermes observer payloads
+use numeric message type codes in Hub storage: `1=pre_llm_call`,
+`2=post_llm_call`, `3=pre_tool_call`, and `4=post_tool_call`. The hook keeps
+the current turn text in normalized fields and excludes the cumulative
+`conversation_history` list from stored raw payloads.
 
 ```bash
 export HERMES_HUB_URL="http://127.0.0.1:8000"

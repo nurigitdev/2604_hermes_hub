@@ -96,6 +96,8 @@ def test_payload_builders_match_hub_contract() -> None:
         "session_key": "agent:main:telegram:private:123456789",
         "direction": "INBOUND",
         "role": "user",
+        "message_type_code": 1,
+        "message_type": "pre_llm_call",
         "content": "Hermes Hub smoke request",
         "request_id": "req_smoke_001",
         "parent_message_id": None,
@@ -111,6 +113,16 @@ def test_payload_builders_match_hub_contract() -> None:
         occurred_at=occurred_at,
         parent_message_id=101,
     )["parent_message_id"] == 101
+    assert build_response_message_payload(
+        config,
+        occurred_at=occurred_at,
+        parent_message_id=101,
+    )["message_type_code"] == 2
+    assert build_response_message_payload(
+        config,
+        occurred_at=occurred_at,
+        parent_message_id=101,
+    )["assistant_response"] == "Hermes Hub smoke response"
     assert build_event_payload(config, occurred_at=occurred_at) == {
         "agent_uid": "agent_20260629_0001",
         "event_type": "agent:smoke",
@@ -167,6 +179,8 @@ def test_run_smoke_sequence_sends_parent_linked_pair() -> None:
     assert calls[0][2] == {"Authorization": "Bearer hub_api_test"}
     assert calls[2][1]["parent_message_id"] == 101
     assert calls[2][1]["request_id"] == "req_smoke_001"
+    assert calls[1][1]["message_type"] == "pre_llm_call"
+    assert calls[2][1]["message_type"] == "post_llm_call"
 
 
 def test_run_smoke_sequence_rejects_missing_message_id() -> None:

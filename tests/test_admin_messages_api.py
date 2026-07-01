@@ -142,6 +142,8 @@ def test_admin_can_search_messages(test_app: FastAPI, db_session: Session) -> No
             "source": "telegram",
             "role": "user",
             "event_type": "message",
+            "message_type_code": 1,
+            "message_type": "pre_llm_call",
             "content_preview": "오늘 작업 내용을 정리해줘",
         }
     ]
@@ -178,6 +180,22 @@ def test_admin_message_search_filters_by_query_values(
     assert body["total"] == 1
     assert body["items"][0]["id"] == first["message_id"]
     assert body["items"][0]["content_preview"] == "alpha report"
+
+
+def test_admin_message_search_rejects_invalid_message_type(
+    test_app: FastAPI,
+    db_session: Session,
+) -> None:
+    seed_admin(db_session)
+    create_ingested_message(test_app, db_session)
+
+    response = anyio.run(
+        login_and_get_admin_messages,
+        test_app,
+        "/admin/api/messages?message_type=unknown",
+    )
+
+    assert response.status_code == 422
 
 
 def test_admin_message_search_supports_pagination(
@@ -226,7 +244,10 @@ def test_admin_can_get_message_detail(test_app: FastAPI, db_session: Session) ->
         "parent_message_id": None,
         "role": "user",
         "direction": "INBOUND",
+        "message_type_code": 1,
+        "message_type": "pre_llm_call",
         "content": "오늘 작업 내용을 정리해줘",
+        "assistant_response": None,
         "tool_calls_json": None,
         "raw_payload": {"telegram_update_id": 100},
         "related_messages": [],
@@ -250,6 +271,7 @@ def test_admin_message_detail_includes_related_messages(
         direction="OUTBOUND",
         role="assistant",
         event_type="agent:end",
+        message_type_code=2,
         content="정리 결과입니다",
         content_hash="related-content-hash",
         source=message.source,
@@ -277,6 +299,8 @@ def test_admin_message_detail_includes_related_messages(
             "role": "assistant",
             "direction": "OUTBOUND",
             "event_type": "agent:end",
+            "message_type_code": 2,
+            "message_type": "post_llm_call",
             "content_preview": "정리 결과입니다",
         }
     ]

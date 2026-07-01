@@ -19,7 +19,25 @@ Transport = Callable[[str, JsonObject, Mapping[str, str]], JsonObject]
 DEFAULT_SOURCE = "gateway"
 DEFAULT_SESSION_KEY = "gateway:unknown"
 DEFAULT_IP_ADDR = "127.0.0.1"
-MESSAGE_EVENT_TYPES = {"agent:start", "agent:end"}
+MESSAGE_TYPE_PRE_LLM_CALL = 1
+MESSAGE_TYPE_POST_LLM_CALL = 2
+MESSAGE_TYPE_PRE_TOOL_CALL = 3
+MESSAGE_TYPE_POST_TOOL_CALL = 4
+MESSAGE_TYPE_NAME_BY_CODE = {
+    MESSAGE_TYPE_PRE_LLM_CALL: "pre_llm_call",
+    MESSAGE_TYPE_POST_LLM_CALL: "post_llm_call",
+    MESSAGE_TYPE_PRE_TOOL_CALL: "pre_tool_call",
+    MESSAGE_TYPE_POST_TOOL_CALL: "post_tool_call",
+}
+MESSAGE_TYPE_CODE_BY_NAME = {name: code for code, name in MESSAGE_TYPE_NAME_BY_CODE.items()}
+LEGACY_EVENT_TYPE_CODE_BY_NAME = {
+    "agent:start": MESSAGE_TYPE_PRE_LLM_CALL,
+    "agent:end": MESSAGE_TYPE_POST_LLM_CALL,
+    "message": MESSAGE_TYPE_PRE_LLM_CALL,
+    "tool:start": MESSAGE_TYPE_PRE_TOOL_CALL,
+    "tool:end": MESSAGE_TYPE_POST_TOOL_CALL,
+}
+MESSAGE_EVENT_TYPES = set(MESSAGE_TYPE_CODE_BY_NAME) | set(LEGACY_EVENT_TYPE_CODE_BY_NAME)
 UTC = timezone.utc  # noqa: UP017 - keep handler compatible with Python 3.10 runtimes.
 
 
@@ -102,21 +120,35 @@ def build_message_payload(
     occurred_at: str,
 ) -> JsonObject:
     request_id = extract_request_id(hook_payload, event_type=event_type)
-    role = "assistant" if event_type == "agent:end" else "user"
-    direction = "OUTBOUND" if event_type == "agent:end" else "INBOUND"
-    content = extract_content(hook_payload, role=role)
+    message_type_code = extract_message_type_code(hook_payload, event_type=event_type)
+    message_type_name = MESSAGE_TYPE_NAME_BY_CODE[message_type_code]
+    role = role_for_message_type(message_type_code)
+    direction = direction_for_message_type(message_type_code)
+    content = extract_content(hook_payload, message_type_code=message_type_code, role=role)
+    assistant_response = (
+        extract_assistant_response(hook_payload)
+        if message_type_code == MESSAGE_TYPE_POST_LLM_CALL
+        else None
+    )
     parent_message_id = extract_parent_message_id(hook_payload)
     source = extract_source(config, hook_payload)
     return {
         "agent_uid": config.agent_uid,
-        "idempotency_key": build_idempotency_key(config, source, request_id, event_type, role),
-        "external_message_id": extract_external_message_id(hook_payload, request_id, role),
+        "idempotency_key": build_idempotency_key(config, source, request_id, message_type_name),
+        "external_message_id": extract_external_message_id(
+            hook_payload,
+            request_id,
+            message_type_name,
+        ),
         "event_type": event_type,
         "source": source,
         "session_key": extract_session_key(config, hook_payload),
         "direction": direction,
         "role": role,
+        "message_type_code": message_type_code,
+        "message_type": message_type_name,
         "content": content,
+        "assistant_response": assistant_response,
         "request_id": request_id,
         "parent_message_id": parent_message_id,
         "occurred_at": occurred_at,
@@ -134,9 +166,15 @@ def build_event_payload(
     summary = first_string(
         hook_payload,
         "summary",
+        "user_message",
+        "assistant_response",
+        "tool_result",
         "message",
         "text",
         "payload.summary",
+        "payload.user_message",
+        "payload.assistant_response",
+        "payload.tool_result",
         "payload.message",
     )
     return {
@@ -150,24 +188,32 @@ def build_event_payload(
 
 
 def build_raw_payload(hook_payload: JsonObject, mapped_as: str) -> JsonObject:
-    return {
+    sanitized_payload, excluded_fields = sanitize_hook_payload(hook_payload)
+    raw_payload = {
         "integration": "hermes_gateway_hook",
         "mapped_as": mapped_as,
-        "hook_payload": hook_payload,
+        "hook_payload": sanitized_payload,
     }
+    if excluded_fields:
+        raw_payload["excluded_fields"] = excluded_fields
+    return raw_payload
 
 
 def extract_event_type(hook_payload: JsonObject) -> str:
-    return first_string(
+    event_type = first_string(
         hook_payload,
         "event_type",
+        "message_type",
         "event",
         "type",
         "hook",
         "name",
         "payload.event_type",
-        default="agent:hook",
+        "payload.message_type",
     )
+    if event_type:
+        return event_type
+    return infer_observer_message_type(hook_payload) or "agent:hook"
 
 
 def extract_occurred_at(hook_payload: JsonObject) -> str | None:
@@ -184,12 +230,16 @@ def extract_occurred_at(hook_payload: JsonObject) -> str | None:
 def extract_request_id(hook_payload: JsonObject, *, event_type: str) -> str:
     return first_string(
         hook_payload,
+        "turn_id",
         "request_id",
         "run_id",
         "trace_id",
         "id",
+        "task_id",
+        "payload.turn_id",
         "payload.request_id",
         "payload.run_id",
+        "payload.task_id",
         default=f"{event_type}:unknown",
     )
 
@@ -221,38 +271,55 @@ def extract_session_key(config: HookConfig, hook_payload: JsonObject) -> str:
     )
 
 
-def extract_external_message_id(hook_payload: JsonObject, request_id: str, role: str) -> str:
+def extract_external_message_id(
+    hook_payload: JsonObject,
+    request_id: str,
+    message_type_name: str,
+) -> str:
     return first_string(
         hook_payload,
         "external_message_id",
         "message_id",
         "payload.external_message_id",
         "payload.message_id",
-        default=f"{request_id}:{role}",
+        default=f"{request_id}:{message_type_name}",
     )
 
 
-def extract_content(hook_payload: JsonObject, *, role: str) -> str:
-    if role == "assistant":
+def extract_content(hook_payload: JsonObject, *, message_type_code: int, role: str) -> str:
+    if message_type_code == MESSAGE_TYPE_PRE_LLM_CALL:
         return first_string(
             hook_payload,
-            "response",
-            "output",
+            "user_message",
+            "prompt",
+            "input",
             "content",
             "message",
             "text",
-            "payload.response",
-            "payload.output",
+            "payload.user_message",
+            "payload.prompt",
+            "payload.input",
             "payload.content",
             default="",
         )
+    if message_type_code == MESSAGE_TYPE_POST_LLM_CALL:
+        return extract_assistant_response(hook_payload)
+    if message_type_code == MESSAGE_TYPE_PRE_TOOL_CALL:
+        return extract_tool_content(hook_payload, default="Tool call requested")
+    if message_type_code == MESSAGE_TYPE_POST_TOOL_CALL:
+        return extract_tool_content(hook_payload, default="Tool call completed")
+
+    if role == "assistant":
+        return extract_assistant_response(hook_payload)
     return first_string(
         hook_payload,
+        "user_message",
         "prompt",
         "input",
         "content",
         "message",
         "text",
+        "payload.user_message",
         "payload.prompt",
         "payload.input",
         "payload.content",
@@ -269,14 +336,153 @@ def extract_parent_message_id(hook_payload: JsonObject) -> int | None:
     return None
 
 
+def extract_message_type_code(hook_payload: JsonObject, *, event_type: str) -> int:
+    code = first_value(hook_payload, "message_type_code", "payload.message_type_code")
+    if isinstance(code, int) and code in MESSAGE_TYPE_NAME_BY_CODE:
+        return code
+    if isinstance(code, str) and code.isdecimal():
+        numeric_code = int(code)
+        if numeric_code in MESSAGE_TYPE_NAME_BY_CODE:
+            return numeric_code
+
+    message_type = first_string(
+        hook_payload,
+        "message_type",
+        "payload.message_type",
+        "observer_type",
+        "payload.observer_type",
+    )
+    if message_type in MESSAGE_TYPE_CODE_BY_NAME:
+        return MESSAGE_TYPE_CODE_BY_NAME[message_type]
+    if event_type in MESSAGE_TYPE_CODE_BY_NAME:
+        return MESSAGE_TYPE_CODE_BY_NAME[event_type]
+    if event_type in LEGACY_EVENT_TYPE_CODE_BY_NAME:
+        return LEGACY_EVENT_TYPE_CODE_BY_NAME[event_type]
+
+    inferred_message_type = infer_observer_message_type(hook_payload)
+    if inferred_message_type is not None:
+        return MESSAGE_TYPE_CODE_BY_NAME[inferred_message_type]
+    return MESSAGE_TYPE_PRE_LLM_CALL
+
+
+def infer_observer_message_type(hook_payload: JsonObject) -> str | None:
+    if first_value(hook_payload, "user_message", "payload.user_message") is not None:
+        return "pre_llm_call"
+    if (
+        first_value(
+            hook_payload,
+            "assistant_response",
+            "llm_response",
+            "response",
+            "output",
+            "payload.assistant_response",
+            "payload.llm_response",
+            "payload.response",
+            "payload.output",
+        )
+        is not None
+    ):
+        return "post_llm_call"
+    if first_value(hook_payload, "tool_result", "payload.tool_result") is not None:
+        return "post_tool_call"
+    if (
+        first_value(
+            hook_payload,
+            "tool_name",
+            "tool_call",
+            "tool_arguments",
+            "payload.tool_name",
+            "payload.tool_call",
+            "payload.tool_arguments",
+        )
+        is not None
+    ):
+        return "pre_tool_call"
+    return None
+
+
+def role_for_message_type(message_type_code: int) -> str:
+    if message_type_code == MESSAGE_TYPE_POST_LLM_CALL:
+        return "assistant"
+    if message_type_code in {MESSAGE_TYPE_PRE_TOOL_CALL, MESSAGE_TYPE_POST_TOOL_CALL}:
+        return "tool"
+    return "user"
+
+
+def direction_for_message_type(message_type_code: int) -> str:
+    if message_type_code in {MESSAGE_TYPE_POST_LLM_CALL, MESSAGE_TYPE_PRE_TOOL_CALL}:
+        return "OUTBOUND"
+    return "INBOUND"
+
+
+def extract_assistant_response(hook_payload: JsonObject) -> str:
+    value = first_value(
+        hook_payload,
+        "assistant_response",
+        "llm_response",
+        "response",
+        "output",
+        "content",
+        "message",
+        "text",
+        "payload.assistant_response",
+        "payload.llm_response",
+        "payload.response",
+        "payload.output",
+        "payload.content",
+    )
+    if value is None:
+        return ""
+    return stringify_json_value(value)
+
+
+def extract_tool_content(hook_payload: JsonObject, *, default: str) -> str:
+    tool_name = first_string(
+        hook_payload,
+        "tool_name",
+        "tool",
+        "payload.tool_name",
+        "payload.tool",
+    )
+    tool_arguments = first_value(
+        hook_payload,
+        "tool_arguments",
+        "arguments",
+        "payload.tool_arguments",
+        "payload.arguments",
+    )
+    tool_result = first_value(hook_payload, "tool_result", "result", "payload.tool_result")
+    if tool_result is not None:
+        return stringify_json_value(tool_result)
+    if tool_name and tool_arguments is not None:
+        return f"{tool_name}: {stringify_json_value(tool_arguments)}"
+    if tool_name:
+        return tool_name
+    return first_string(hook_payload, "summary", "payload.summary", default=default)
+
+
+def stringify_json_value(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+
+def sanitize_hook_payload(hook_payload: JsonObject) -> tuple[JsonObject, list[str]]:
+    sanitized_payload = dict(hook_payload)
+    excluded_fields = []
+    if "conversation_history" in sanitized_payload:
+        del sanitized_payload["conversation_history"]
+        excluded_fields.append("conversation_history")
+    return sanitized_payload, excluded_fields
+
+
 def build_idempotency_key(
     config: HookConfig,
     source: str,
     request_id: str,
-    event_type: str,
-    role: str,
+    message_type_name: str,
 ) -> str:
-    return f"{config.agent_uid}:{source}:{request_id}:{event_type}:{role}"
+    return f"{config.agent_uid}:{source}:{request_id}:{message_type_name}"
 
 
 def first_string(

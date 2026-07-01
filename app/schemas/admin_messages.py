@@ -13,6 +13,8 @@ class AdminMessageListItem(BaseModel):
     source: str
     role: str
     event_type: str
+    message_type_code: int
+    message_type: str
     content_preview: str
 
 
@@ -29,6 +31,8 @@ class AdminMessageRelatedItem(BaseModel):
     role: str
     direction: str
     event_type: str
+    message_type_code: int
+    message_type: str
     content_preview: str
 
 
@@ -40,7 +44,10 @@ class AdminMessageDetailResponse(BaseModel):
     parent_message_id: int | None
     role: str
     direction: str
+    message_type_code: int
+    message_type: str
     content: str
+    assistant_response: str | None
     tool_calls_json: str | None
     raw_payload: dict[str, Any]
     related_messages: list[AdminMessageRelatedItem]

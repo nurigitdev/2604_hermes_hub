@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.message_types import normalize_message_type_code
 from app.models.agent_message import AgentMessage
 from app.models.agent_session import AgentSession
 from app.models.user import utc_now
@@ -36,6 +37,9 @@ def ingest_message(
     request_id: str | None,
     occurred_at: datetime | None,
     raw_payload: dict[str, Any],
+    message_type_code: int | None = None,
+    message_type: str | None = None,
+    assistant_response: str | None = None,
     parent_message_id: int | None = None,
 ) -> MessageIngestResult:
     ensure_message_ingest_allowed(authenticated_agent, agent_uid=agent_uid)
@@ -57,6 +61,13 @@ def ingest_message(
         session_key=session_key,
         occurred_at=occurred_at,
     )
+    normalized_message_type_code = normalize_message_type_code(
+        message_type_code=message_type_code,
+        message_type=message_type,
+        event_type=event_type,
+        role=role,
+        direction=direction,
+    )
     message = AgentMessage(
         agent_id=authenticated_agent.agent.id,
         session_id=agent_session.id,
@@ -65,7 +76,9 @@ def ingest_message(
         direction=direction,
         role=role,
         event_type=event_type,
+        message_type_code=normalized_message_type_code,
         content=content,
+        assistant_response=assistant_response,
         content_hash=hash_content(content),
         source=source,
         request_id=request_id,

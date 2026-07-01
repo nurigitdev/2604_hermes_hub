@@ -101,8 +101,40 @@ def test_active_agent_can_ingest_message(
     assert message.source == "telegram"
     assert message.role == "user"
     assert message.event_type == "message"
+    assert message.message_type_code == 1
+    assert message.assistant_response is None
     assert message.parent_message_id is None
     assert json.loads(message.raw_payload) == {"telegram_update_id": 100}
+
+
+def test_active_agent_can_ingest_post_llm_message(
+    test_app: FastAPI,
+    db_session: Session,
+) -> None:
+    enroll_body = enroll_active_agent(test_app, db_session)
+    payload = message_payload(enroll_body["agent_uid"])
+    payload["idempotency_key"] = "post-llm-idempotency-key"
+    payload["external_message_id"] = "post-llm-message"
+    payload["event_type"] = "post_llm_call"
+    payload["message_type_code"] = 2
+    payload["message_type"] = "post_llm_call"
+    payload["direction"] = "OUTBOUND"
+    payload["role"] = "assistant"
+    payload["content"] = "정리 결과입니다"
+    payload["assistant_response"] = "정리 결과입니다"
+
+    response = anyio.run(
+        post_message_ingest,
+        test_app,
+        payload,
+        enroll_body["api_token"],
+    )
+    message = db_session.get(AgentMessage, response.json()["message_id"])
+
+    assert response.status_code == 200
+    assert message is not None
+    assert message.message_type_code == 2
+    assert message.assistant_response == "정리 결과입니다"
 
 
 def test_message_ingest_accepts_parent_message_id(
@@ -268,6 +300,25 @@ def test_message_ingest_validates_required_session_key(
     enroll_body = enroll_active_agent(test_app, db_session)
     payload = message_payload(enroll_body["agent_uid"])
     del payload["session_key"]
+
+    response = anyio.run(
+        post_message_ingest,
+        test_app,
+        payload,
+        enroll_body["api_token"],
+    )
+
+    assert response.status_code == 422
+
+
+def test_message_ingest_rejects_conflicting_message_type_values(
+    test_app: FastAPI,
+    db_session: Session,
+) -> None:
+    enroll_body = enroll_active_agent(test_app, db_session)
+    payload = message_payload(enroll_body["agent_uid"])
+    payload["message_type_code"] = 1
+    payload["message_type"] = "post_llm_call"
 
     response = anyio.run(
         post_message_ingest,

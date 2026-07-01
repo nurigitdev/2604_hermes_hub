@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import AGENT_FORBIDDEN_DETAIL, get_current_agent
+from app.core.message_types import InvalidMessageTypeError
 from app.db.session import get_db_session
 from app.schemas.messages import MessageIngestRequest, MessageIngestResponse
 from app.services.agents import AgentAccessForbiddenError, AuthenticatedAgent
@@ -32,6 +33,9 @@ def ingest(
             direction=request.direction,
             role=request.role,
             content=request.content,
+            message_type_code=request.message_type_code,
+            message_type=request.message_type,
+            assistant_response=request.assistant_response,
             request_id=request.request_id,
             parent_message_id=request.parent_message_id,
             occurred_at=request.occurred_at,
@@ -41,6 +45,11 @@ def ingest(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=AGENT_FORBIDDEN_DETAIL,
+        ) from exc
+    except InvalidMessageTypeError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
         ) from exc
 
     return MessageIngestResponse(

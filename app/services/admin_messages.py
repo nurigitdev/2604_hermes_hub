@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.message_types import message_type_name, normalize_message_type_code
 from app.models.agent_message import AgentMessage
 from app.models.agent_session import AgentSession
 from app.models.hermes_agent import HermesAgent
@@ -45,6 +46,8 @@ def search_admin_messages(
     source: str | None = None,
     role: str | None = None,
     event_type: str | None = None,
+    message_type: str | None = None,
+    message_type_code: int | None = None,
     keyword: str | None = None,
     limit: int = DEFAULT_MESSAGE_LIMIT,
     offset: int = 0,
@@ -63,6 +66,8 @@ def search_admin_messages(
         source=source,
         role=role,
         event_type=event_type,
+        message_type=message_type,
+        message_type_code=message_type_code,
         keyword=keyword,
     )
     count_statement = apply_message_filters(
@@ -77,6 +82,8 @@ def search_admin_messages(
         source=source,
         role=role,
         event_type=event_type,
+        message_type=message_type,
+        message_type_code=message_type_code,
         keyword=keyword,
     )
 
@@ -148,6 +155,8 @@ def apply_message_filters(
     source: str | None,
     role: str | None,
     event_type: str | None,
+    message_type: str | None,
+    message_type_code: int | None,
     keyword: str | None,
 ) -> Select:
     if date_from is not None:
@@ -164,11 +173,20 @@ def apply_message_filters(
         statement = statement.where(AgentMessage.role == role)
     if event_type is not None:
         statement = statement.where(AgentMessage.event_type == event_type)
+    if message_type is not None or message_type_code is not None:
+        statement = statement.where(
+            AgentMessage.message_type_code
+            == normalize_message_type_code(
+                message_type=message_type,
+                message_type_code=message_type_code,
+            )
+        )
     if keyword is not None:
         keyword_pattern = f"%{keyword}%"
         statement = statement.where(
             or_(
                 AgentMessage.content.like(keyword_pattern),
+                AgentMessage.assistant_response.like(keyword_pattern),
                 AgentMessage.event_type.like(keyword_pattern),
             )
         )
@@ -196,3 +214,7 @@ def parse_raw_payload(raw_payload: str) -> dict[str, Any]:
     if isinstance(value, dict):
         return value
     return {"value": value}
+
+
+def agent_message_type_name(message: AgentMessage) -> str:
+    return message_type_name(message.message_type_code)

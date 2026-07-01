@@ -20,6 +20,8 @@ DEFAULT_PROFILE_NAME = "hermes-smoke"
 DEFAULT_SOURCE = "gateway"
 DEFAULT_IP_ADDR = "127.0.0.1"
 DEFAULT_SESSION_KEY = "smoke:hermes:contract"
+MESSAGE_TYPE_PRE_LLM_CALL = 1
+MESSAGE_TYPE_POST_LLM_CALL = 2
 
 
 class SmokeClientError(Exception):
@@ -86,6 +88,8 @@ def build_request_message_payload(config: SmokeConfig, *, occurred_at: str) -> J
         "session_key": config.session_key,
         "direction": "INBOUND",
         "role": "user",
+        "message_type_code": MESSAGE_TYPE_PRE_LLM_CALL,
+        "message_type": "pre_llm_call",
         "content": "Hermes Hub smoke request",
         "request_id": config.request_id,
         "parent_message_id": None,
@@ -113,7 +117,10 @@ def build_response_message_payload(
         "session_key": config.session_key,
         "direction": "OUTBOUND",
         "role": "assistant",
+        "message_type_code": MESSAGE_TYPE_POST_LLM_CALL,
+        "message_type": "post_llm_call",
         "content": "Hermes Hub smoke response",
+        "assistant_response": "Hermes Hub smoke response",
         "request_id": config.request_id,
         "parent_message_id": parent_message_id,
         "occurred_at": occurred_at,

@@ -231,6 +231,16 @@
               </select>
             </label>
             <label>
+              Type
+              <select name="message_type">
+                <option value="">All</option>
+                <option value="pre_llm_call">pre_llm_call</option>
+                <option value="post_llm_call">post_llm_call</option>
+                <option value="pre_tool_call">pre_tool_call</option>
+                <option value="post_tool_call">post_tool_call</option>
+              </select>
+            </label>
+            <label>
               Event Type
               <input name="event_type" placeholder="agent:start" type="text" />
             </label>
@@ -332,8 +342,17 @@
                     <dt>Direction</dt>
                     <dd data-message-detail-field="direction">-</dd>
                   </div>
+                  <div>
+                    <dt>Type</dt>
+                    <dd data-message-detail-field="message_type">-</dd>
+                  </div>
                 </dl>
                 <pre class="detail-pre" data-message-detail-field="content"></pre>
+              </section>
+
+              <section class="detail-section">
+                <h4>Assistant Response</h4>
+                <pre class="detail-pre" data-message-detail-field="assistant_response"></pre>
               </section>
 
               <section class="detail-section">

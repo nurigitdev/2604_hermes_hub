@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.message_types import MESSAGE_TYPE_PRE_LLM_CALL
 from app.db.base import Base
 from app.models.user import utc_now
 
@@ -27,6 +28,7 @@ class AgentMessage(Base):
         ),
         Index("ix_agent_messages_agent_occurred_at", "agent_id", "occurred_at"),
         Index("ix_agent_messages_filter", "source", "role", "event_type"),
+        Index("ix_agent_messages_type_occurred_at", "message_type_code", "occurred_at"),
         Index("ix_agent_messages_request_id", "request_id"),
     )
 
@@ -38,7 +40,13 @@ class AgentMessage(Base):
     direction: Mapped[str] = mapped_column(String(32), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    message_type_code: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=MESSAGE_TYPE_PRE_LLM_CALL,
+    )
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    assistant_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     content_hash: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     request_id: Mapped[str | None] = mapped_column(String(255), nullable=True)

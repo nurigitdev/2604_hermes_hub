@@ -366,7 +366,10 @@ function renderMessages(items) {
             <span class="${roleBadgeClass(message.role)}">${escapeHtml(message.role)}</span>
           </td>
           <td data-label="Event">
-            <span class="event-chip">${escapeHtml(message.event_type)}</span>
+            <div class="cell-stack">
+              <span class="event-chip">${escapeHtml(message.event_type)}</span>
+              <span>${escapeHtml(message.message_type)}</span>
+            </div>
           </td>
           <td data-label="Preview">
             <span class="message-preview">${escapeHtml(message.content_preview)}</span>
@@ -420,10 +423,18 @@ function setMessageDetailPre(name, value) {
 
 function resetMessageDetail(messageId) {
   document.querySelector("[data-message-detail-title]").textContent = `Message #${messageId}`;
-  ["agent_uid", "session_key", "request_id", "parent_message_id", "role", "direction"].forEach(
-    (name) => setMessageDetailField(name, "-")
+  [
+    "agent_uid",
+    "session_key",
+    "request_id",
+    "parent_message_id",
+    "role",
+    "direction",
+    "message_type",
+  ].forEach((name) => setMessageDetailField(name, "-"));
+  ["content", "assistant_response", "tool_calls_json", "raw_payload"].forEach((name) =>
+    setMessageDetailPre(name, "")
   );
-  ["content", "tool_calls_json", "raw_payload"].forEach((name) => setMessageDetailPre(name, ""));
   const relatedList = document.querySelector("[data-message-related-list]");
   if (relatedList) relatedList.innerHTML = "<p>No related messages.</p>";
 }
@@ -451,6 +462,7 @@ function renderRelatedMessages(relatedMessages) {
           <span class="related-message-tags">
             <span class="${roleBadgeClass(message.role)}">${escapeHtml(message.role)}</span>
             <span class="event-chip">${escapeHtml(message.event_type)}</span>
+            <span class="source-chip">${escapeHtml(message.message_type)}</span>
           </span>
           <span class="message-preview">${escapeHtml(message.content_preview)}</span>
         </button>
@@ -468,7 +480,9 @@ function renderMessageDetail(detail) {
   setMessageDetailField("parent_message_id", detail.parent_message_id);
   setMessageDetailField("role", detail.role);
   setMessageDetailField("direction", detail.direction);
+  setMessageDetailField("message_type", detail.message_type);
   setMessageDetailPre("content", detail.content);
+  setMessageDetailPre("assistant_response", displayValue(detail.assistant_response));
   setMessageDetailPre("tool_calls_json", formatJsonValue(detail.tool_calls_json));
   setMessageDetailPre("raw_payload", formatJsonValue(detail.raw_payload));
   renderRelatedMessages(detail.related_messages || []);

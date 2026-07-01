@@ -104,6 +104,69 @@ def test_build_hook_actions_maps_agent_start_to_message_and_event() -> None:
     assert event["summary"] == "Hermes Gateway hook received: agent:start"
 
 
+def test_build_hook_actions_maps_real_pre_llm_observer_payload() -> None:
+    payload = {
+        "session_id": "20260701_150559_32b05f",
+        "task_id": "20260701_150559_32b05f",
+        "turn_id": "20260701_150559_32b05f:20260701_150559_32b05f:b5608a40",
+        "user_message": "antrophic 회사에 대해서 설명해줘",
+        "conversation_history": [
+            {"role": "user", "content": "antrophic 회사에 대해서 설명해줘"}
+        ],
+        "is_first_turn": True,
+        "model": "google/gemma-4-12B-it",
+        "platform": "cli",
+        "sender_id": "",
+        "telemetry_schema_version": "hermes.observer.v1",
+    }
+
+    actions = build_hook_actions(hook_config(), payload)
+
+    assert [action.endpoint for action in actions] == [
+        "/api/v1/messages/ingest",
+        "/api/v1/events/ingest",
+    ]
+    message = actions[0].payload
+    assert message["event_type"] == "pre_llm_call"
+    assert message["message_type_code"] == 1
+    assert message["message_type"] == "pre_llm_call"
+    assert message["source"] == "cli"
+    assert message["session_key"] == "20260701_150559_32b05f"
+    assert message["direction"] == "INBOUND"
+    assert message["role"] == "user"
+    assert message["content"] == "antrophic 회사에 대해서 설명해줘"
+    assert message["assistant_response"] is None
+    assert message["request_id"] == "20260701_150559_32b05f:20260701_150559_32b05f:b5608a40"
+    assert message["external_message_id"].endswith(":pre_llm_call")
+    assert "conversation_history" not in message["raw_payload"]["hook_payload"]
+    assert message["raw_payload"]["excluded_fields"] == ["conversation_history"]
+
+
+def test_build_hook_actions_maps_real_post_llm_observer_payload() -> None:
+    assistant_response = "Anthropic은 AI 안전성 연구와 Claude로 알려진 회사입니다."
+    payload = {
+        "session_id": "20260701_150559_32b05f",
+        "task_id": "20260701_150559_32b05f",
+        "turn_id": "20260701_150559_32b05f:20260701_150559_32b05f:b5608a40",
+        "assistant_response": assistant_response,
+        "model": "google/gemma-4-12B-it",
+        "platform": "cli",
+        "telemetry_schema_version": "hermes.observer.v1",
+    }
+
+    actions = build_hook_actions(hook_config(), payload)
+
+    message = actions[0].payload
+    assert message["event_type"] == "post_llm_call"
+    assert message["message_type_code"] == 2
+    assert message["message_type"] == "post_llm_call"
+    assert message["direction"] == "OUTBOUND"
+    assert message["role"] == "assistant"
+    assert message["content"] == assistant_response
+    assert message["assistant_response"] == assistant_response
+    assert message["request_id"] == "20260701_150559_32b05f:20260701_150559_32b05f:b5608a40"
+
+
 def test_build_hook_actions_maps_agent_end_response_with_parent_message_id() -> None:
     payload = {
         "event": "agent:end",

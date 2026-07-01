@@ -82,6 +82,8 @@ def test_ingest_message_creates_session_and_message(db_session: Session) -> None
     assert message.direction == "INBOUND"
     assert message.role == "user"
     assert message.event_type == "message"
+    assert message.message_type_code == 1
+    assert message.assistant_response is None
     assert message.parent_message_id is None
     assert message.content_hash == hash_content("오늘 작업 내용을 정리해줘")
     assert json.loads(message.raw_payload) == {"telegram_update_id": 100}
@@ -102,6 +104,25 @@ def test_ingest_message_stores_parent_message_id(db_session: Session) -> None:
     child = ingest_message(db_session, authenticated_agent=authenticated_agent, **child_kwargs)
 
     assert child.message.parent_message_id == parent.message.id
+
+
+def test_ingest_message_stores_post_llm_type_and_assistant_response(
+    db_session: Session,
+) -> None:
+    enrolled_agent, authenticated_agent = active_authenticated_agent(db_session)
+    kwargs = message_kwargs(enrolled_agent.agent.agent_uid)
+    kwargs["idempotency_key"] = "msg_agent_1_resp_1"
+    kwargs["external_message_id"] = "telegram_123456789_101"
+    kwargs["event_type"] = "post_llm_call"
+    kwargs["direction"] = "OUTBOUND"
+    kwargs["role"] = "assistant"
+    kwargs["content"] = "정리 결과입니다"
+    kwargs["assistant_response"] = "정리 결과입니다"
+
+    result = ingest_message(db_session, authenticated_agent=authenticated_agent, **kwargs)
+
+    assert result.message.message_type_code == 2
+    assert result.message.assistant_response == "정리 결과입니다"
 
 
 def test_ingest_message_reuses_existing_session(db_session: Session) -> None:

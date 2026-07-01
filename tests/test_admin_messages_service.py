@@ -61,6 +61,8 @@ def make_message(
     parent_message_id: int | None = None,
     role: str = "user",
     direction: str = "INBOUND",
+    message_type_code: int | None = None,
+    assistant_response: str | None = None,
     occurred_at: datetime | None = datetime(2026, 6, 25, 9, 30, tzinfo=UTC),
 ) -> AgentMessage:
     message = AgentMessage(
@@ -71,7 +73,9 @@ def make_message(
         direction=direction,
         role=role,
         event_type="message",
+        message_type_code=message_type_code or 1,
         content=content,
+        assistant_response=assistant_response,
         content_hash="content-hash",
         source="telegram",
         request_id=request_id,
@@ -90,6 +94,51 @@ def test_search_admin_messages_returns_rows_and_total(db_session: Session) -> No
     message = make_message(db_session, agent_id=agent.id, session_id=agent_session.id)
 
     result = search_admin_messages(db_session, keyword="hello")
+
+    assert result.total == 1
+    assert result.items == [AdminMessageRow(message=message, agent=agent)]
+
+
+def test_search_admin_messages_filters_by_message_type(db_session: Session) -> None:
+    agent = make_agent(db_session)
+    agent_session = make_session(db_session, agent_id=agent.id)
+    make_message(
+        db_session,
+        agent_id=agent.id,
+        session_id=agent_session.id,
+        message_type_code=1,
+    )
+    post_llm_message = make_message(
+        db_session,
+        agent_id=agent.id,
+        session_id=agent_session.id,
+        external_message_id="external-2",
+        idempotency_key="idempotency-2",
+        message_type_code=2,
+        role="assistant",
+        direction="OUTBOUND",
+    )
+
+    result = search_admin_messages(db_session, message_type="post_llm_call")
+
+    assert result.total == 1
+    assert result.items == [AdminMessageRow(message=post_llm_message, agent=agent)]
+
+
+def test_search_admin_messages_matches_assistant_response_keyword(db_session: Session) -> None:
+    agent = make_agent(db_session)
+    agent_session = make_session(db_session, agent_id=agent.id)
+    message = make_message(
+        db_session,
+        agent_id=agent.id,
+        session_id=agent_session.id,
+        role="assistant",
+        direction="OUTBOUND",
+        message_type_code=2,
+        assistant_response="alpha assistant answer",
+    )
+
+    result = search_admin_messages(db_session, keyword="assistant answer")
 
     assert result.total == 1
     assert result.items == [AdminMessageRow(message=message, agent=agent)]
