@@ -58,7 +58,7 @@
         <nav class="nav-list" aria-label="Admin navigation">
           <a class="nav-item" data-nav="dashboard" href="/admin/dashboard">Dashboard</a>
           <a class="nav-item" data-nav="agents" href="/admin/agents">Agents</a>
-          <button class="nav-item" disabled type="button">Messages</button>
+          <a class="nav-item" data-nav="messages" href="/admin/messages">Messages</a>
           <button class="nav-item" disabled type="button">Events</button>
         </nav>
       </aside>
@@ -191,6 +191,82 @@
               <tbody data-agent-rows>
                 <tr>
                   <td colspan="6">Loading agents.</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </section>
+
+        <section class="messages-page" data-page="messages" hidden>
+          <h2 class="visually-hidden">Message Explorer</h2>
+          <form class="filter-bar message-filter-bar" data-message-filters>
+            <label>
+              From
+              <input name="date_from" type="datetime-local" />
+            </label>
+            <label>
+              To
+              <input name="date_to" type="datetime-local" />
+            </label>
+            <label>
+              Agent UID
+              <input name="agent_uid" placeholder="agent_..." type="text" />
+            </label>
+            <label>
+              Owner
+              <input name="owner_email" placeholder="owner@example.com" type="email" />
+            </label>
+            <label>
+              Source
+              <input name="source" placeholder="gateway" type="text" />
+            </label>
+            <label>
+              Role
+              <select name="role">
+                <option value="">All</option>
+                <option value="user">user</option>
+                <option value="assistant">assistant</option>
+                <option value="system">system</option>
+                <option value="tool">tool</option>
+              </select>
+            </label>
+            <label>
+              Event Type
+              <input name="event_type" placeholder="agent:start" type="text" />
+            </label>
+            <label>
+              Keyword
+              <input name="keyword" placeholder="content keyword" type="search" />
+            </label>
+            <div class="filter-actions">
+              <button class="primary-button" type="submit">Search</button>
+              <button class="secondary-button" data-reset-message-filters type="button">
+                Reset
+              </button>
+            </div>
+          </form>
+
+          <section class="registry-summary" aria-label="Message explorer status">
+            <strong><span data-messages-count>0</span> messages</strong>
+            <span data-messages-status>Waiting for messages.</span>
+          </section>
+
+          <section class="table-wrap" aria-label="Message explorer">
+            <table class="data-table message-table">
+              <thead>
+                <tr>
+                  <th scope="col">Occurred</th>
+                  <th scope="col">Agent</th>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Event</th>
+                  <th scope="col">Preview</th>
+                </tr>
+              </thead>
+              <tbody data-message-rows>
+                <tr>
+                  <td colspan="7">Loading messages.</td>
                 </tr>
               </tbody>
             </table>

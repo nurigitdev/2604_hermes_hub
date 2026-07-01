@@ -33,3 +33,8 @@ def admin_dashboard() -> FileResponse:
 @router.get("/admin/agents")
 def admin_agents() -> FileResponse:
     return FileResponse(ADMIN_SHELL_PATH)
+
+
+@router.get("/admin/messages")
+def admin_messages() -> FileResponse:
+    return FileResponse(ADMIN_SHELL_PATH)

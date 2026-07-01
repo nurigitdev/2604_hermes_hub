@@ -1,10 +1,12 @@
 const LOGIN_PATH = "/admin/login";
 const DASHBOARD_PATH = "/admin/dashboard";
 const AGENTS_PATH = "/admin/agents";
+const MESSAGES_PATH = "/admin/messages";
 
 const PAGE_TITLES = {
   [DASHBOARD_PATH]: "Dashboard",
   [AGENTS_PATH]: "Agent Registry",
+  [MESSAGES_PATH]: "Message Explorer",
 };
 
 function showView(name) {
@@ -143,6 +145,10 @@ function setActivePage(pageName) {
 
 function agentStatusClass(status) {
   return `status-badge status-${status.toLowerCase()}`;
+}
+
+function roleBadgeClass(role) {
+  return `role-badge role-${String(role).toLowerCase()}`;
 }
 
 function formatDateTime(value) {
@@ -300,9 +306,86 @@ function bindAgents() {
   document.querySelector("[data-agent-rows]")?.addEventListener("click", handleAgentAction);
 }
 
+function messageFilterQuery() {
+  const form = document.querySelector("[data-message-filters]");
+  const params = new URLSearchParams({ limit: "50", offset: "0" });
+  new FormData(form).forEach((value, key) => {
+    const text = String(value).trim();
+    if (text) params.set(key, text);
+  });
+  return params;
+}
+
+function renderMessages(items) {
+  const rows = document.querySelector("[data-message-rows]");
+  if (!rows) return;
+  if (items.length === 0) {
+    rows.innerHTML = '<tr><td colspan="7">No messages match the current filters.</td></tr>';
+    return;
+  }
+
+  rows.innerHTML = items
+    .map(
+      (message) => `
+        <tr data-message-id="${message.id}">
+          <td data-label="Occurred">${escapeHtml(formatDateTime(message.occurred_at))}</td>
+          <td data-label="Agent">
+            <div class="cell-stack">
+              <strong>${escapeHtml(message.profile_name)}</strong>
+              <span>${escapeHtml(message.agent_uid)}</span>
+            </div>
+          </td>
+          <td data-label="Owner">${escapeHtml(message.owner_email || "-")}</td>
+          <td data-label="Source">
+            <span class="source-chip">${escapeHtml(message.source)}</span>
+          </td>
+          <td data-label="Role">
+            <span class="${roleBadgeClass(message.role)}">${escapeHtml(message.role)}</span>
+          </td>
+          <td data-label="Event">
+            <span class="event-chip">${escapeHtml(message.event_type)}</span>
+          </td>
+          <td data-label="Preview">
+            <span class="message-preview">${escapeHtml(message.content_preview)}</span>
+          </td>
+        </tr>
+      `
+    )
+    .join("");
+}
+
+async function loadMessages() {
+  const status = document.querySelector("[data-messages-status]");
+  status.textContent = "Loading messages.";
+  const { response, body } = await fetchJson(`/admin/api/messages?${messageFilterQuery()}`);
+  if (!response.ok) {
+    status.textContent = "Message explorer unavailable.";
+    return;
+  }
+  document.querySelector("[data-messages-count]").textContent = String(body.total);
+  status.textContent = body.total === 1 ? "1 matching message." : `${body.total} matching messages.`;
+  renderMessages(body.items);
+}
+
+function bindMessages() {
+  const form = document.querySelector("[data-message-filters]");
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    loadMessages();
+  });
+  document.querySelector("[data-reset-message-filters]")?.addEventListener("click", () => {
+    form.reset();
+    loadMessages();
+  });
+}
+
 async function refreshCurrentPage() {
   if (window.location.pathname === AGENTS_PATH) {
     await loadAgents();
+    return;
+  }
+  if (window.location.pathname === MESSAGES_PATH) {
+    await loadMessages();
     return;
   }
   await loadDashboard();
@@ -310,9 +393,15 @@ async function refreshCurrentPage() {
 
 async function bindApp() {
   showView("app");
-  const pageName = window.location.pathname === AGENTS_PATH ? "agents" : "dashboard";
+  const pageName =
+    window.location.pathname === AGENTS_PATH
+      ? "agents"
+      : window.location.pathname === MESSAGES_PATH
+        ? "messages"
+        : "dashboard";
   setActivePage(pageName);
   bindAgents();
+  bindMessages();
   document.querySelector("[data-refresh-dashboard]")?.addEventListener("click", refreshCurrentPage);
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
     await postJson("/auth/logout");

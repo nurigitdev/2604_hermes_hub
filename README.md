@@ -95,6 +95,7 @@ The first Admin screen is served directly by FastAPI:
 - Login: `http://127.0.0.1:8000/admin/login`
 - Dashboard: `http://127.0.0.1:8000/admin/dashboard`
 - Agent Registry: `http://127.0.0.1:8000/admin/agents`
+- Message Explorer: `http://127.0.0.1:8000/admin/messages`
 
 The dashboard uses the existing admin session cookie and reads
 `/admin/api/dashboard/summary` for the first-screen metrics.

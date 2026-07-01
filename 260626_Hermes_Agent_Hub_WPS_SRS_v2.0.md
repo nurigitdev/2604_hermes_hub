@@ -1191,6 +1191,12 @@ Admin은 수집된 message를 검색하고 확인할 수 있어야 한다.
 - Event Type
 - Content Preview
 
+v2.0 초기 Message Explorer Web View는 `/admin/messages`에서 제공한다. 화면은
+`/admin/api/messages`를 사용해 date range, agent_uid, owner email, source, role,
+event_type, keyword 필터를 적용하고, 목록에서 발생 시각, Agent, owner, source,
+role, event type, content preview를 확인할 수 있어야 한다. Message 상세 drawer는
+후속 slice에서 확장한다.
+
 상세 화면:
 
 - Message 본문

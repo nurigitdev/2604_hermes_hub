@@ -54,8 +54,17 @@ def test_admin_agents_serves_web_shell(test_app: FastAPI) -> None:
     assert "Agent Registry" in response.text
 
 
+def test_admin_messages_serves_web_shell(test_app: FastAPI) -> None:
+    response = anyio.run(get_path, test_app, "/admin/messages")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert 'data-page="messages"' in response.text
+    assert "Message Explorer" in response.text
+
+
 def test_admin_static_assets_are_served(test_app: FastAPI) -> None:
     response = anyio.run(get_path, test_app, "/admin/static/admin.js")
 
     assert response.status_code == 200
-    assert "loadAgents" in response.text
+    assert "loadMessages" in response.text

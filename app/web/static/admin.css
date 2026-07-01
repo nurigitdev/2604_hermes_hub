@@ -369,6 +369,15 @@ input:focus {
   align-items: end;
 }
 
+.message-filter-bar {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.message-filter-bar .filter-actions {
+  justify-content: flex-end;
+  grid-column: 1 / -1;
+}
+
 select {
   width: 100%;
   border: 1px solid var(--line);
@@ -488,6 +497,51 @@ select:focus {
   grid-column: 1 / -1;
 }
 
+.message-table {
+  min-width: 1080px;
+}
+
+.role-badge,
+.event-chip,
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.role-user {
+  background: #e4f0fb;
+  color: var(--accent-2);
+}
+
+.role-assistant {
+  background: #dff1e8;
+  color: var(--accent);
+}
+
+.role-system,
+.role-tool {
+  background: #ecefed;
+  color: var(--muted);
+}
+
+.event-chip,
+.source-chip {
+  background: #f4eadc;
+  color: var(--warn);
+}
+
+.message-preview {
+  display: block;
+  max-width: 42ch;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
 @media (max-width: 840px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -520,8 +574,14 @@ select:focus {
 
   .metric-grid,
   .dashboard-band,
-  .filter-bar {
+  .filter-bar,
+  .message-filter-bar {
     grid-template-columns: 1fr;
+  }
+
+  .message-filter-bar .filter-actions {
+    grid-column: auto;
+    justify-content: stretch;
   }
 
   .filter-actions {
