@@ -2,6 +2,7 @@ const LOGIN_PATH = "/admin/login";
 const DASHBOARD_PATH = "/admin/dashboard";
 const AGENTS_PATH = "/admin/agents";
 const MESSAGES_PATH = "/admin/messages";
+const MESSAGE_API_PATH = "/admin/api/messages";
 
 const PAGE_TITLES = {
   [DASHBOARD_PATH]: "Dashboard",
@@ -157,6 +158,23 @@ function formatDateTime(value) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function displayValue(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value);
+}
+
+function formatJsonValue(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "string") {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2);
+    } catch {
+      return value;
+    }
+  }
+  return JSON.stringify(value, null, 2);
 }
 
 function escapeHtml(value) {
@@ -327,7 +345,12 @@ function renderMessages(items) {
   rows.innerHTML = items
     .map(
       (message) => `
-        <tr data-message-id="${message.id}">
+        <tr
+          aria-label="Open message ${escapeHtml(message.id)} detail"
+          class="message-row"
+          data-message-id="${escapeHtml(message.id)}"
+          tabindex="0"
+        >
           <td data-label="Occurred">${escapeHtml(formatDateTime(message.occurred_at))}</td>
           <td data-label="Agent">
             <div class="cell-stack">
@@ -367,6 +390,132 @@ async function loadMessages() {
   renderMessages(body.items);
 }
 
+function setMessageDrawerOpen(isOpen) {
+  const drawer = document.querySelector("[data-message-drawer]");
+  if (!drawer) return;
+  drawer.hidden = !isOpen;
+  document.body.classList.toggle("detail-drawer-open", isOpen);
+}
+
+function closeMessageDetail() {
+  setMessageDrawerOpen(false);
+}
+
+function setMessageDetailStatus(message) {
+  const status = document.querySelector("[data-message-detail-status]");
+  if (status) status.textContent = message;
+}
+
+function setMessageDetailField(name, value) {
+  const target = document.querySelector(`[data-message-detail-field="${name}"]`);
+  if (!target) return;
+  target.textContent = displayValue(value);
+}
+
+function setMessageDetailPre(name, value) {
+  const target = document.querySelector(`[data-message-detail-field="${name}"]`);
+  if (!target) return;
+  target.textContent = value;
+}
+
+function resetMessageDetail(messageId) {
+  document.querySelector("[data-message-detail-title]").textContent = `Message #${messageId}`;
+  ["agent_uid", "session_key", "request_id", "parent_message_id", "role", "direction"].forEach(
+    (name) => setMessageDetailField(name, "-")
+  );
+  ["content", "tool_calls_json", "raw_payload"].forEach((name) => setMessageDetailPre(name, ""));
+  const relatedList = document.querySelector("[data-message-related-list]");
+  if (relatedList) relatedList.innerHTML = "<p>No related messages.</p>";
+}
+
+function renderRelatedMessages(relatedMessages) {
+  const relatedList = document.querySelector("[data-message-related-list]");
+  if (!relatedList) return;
+  if (relatedMessages.length === 0) {
+    relatedList.innerHTML = "<p>No related messages.</p>";
+    return;
+  }
+
+  relatedList.innerHTML = relatedMessages
+    .map(
+      (message) => `
+        <button
+          class="related-message-item"
+          data-related-message-id="${escapeHtml(message.id)}"
+          type="button"
+        >
+          <span class="related-message-meta">
+            <strong>#${escapeHtml(message.id)}</strong>
+            <span>${escapeHtml(formatDateTime(message.occurred_at))}</span>
+          </span>
+          <span class="related-message-tags">
+            <span class="${roleBadgeClass(message.role)}">${escapeHtml(message.role)}</span>
+            <span class="event-chip">${escapeHtml(message.event_type)}</span>
+          </span>
+          <span class="message-preview">${escapeHtml(message.content_preview)}</span>
+        </button>
+      `
+    )
+    .join("");
+}
+
+function renderMessageDetail(detail) {
+  document.querySelector("[data-message-detail-title]").textContent = `Message #${detail.id}`;
+  setMessageDetailStatus("Message detail loaded.");
+  setMessageDetailField("agent_uid", detail.agent_uid);
+  setMessageDetailField("session_key", detail.session_key);
+  setMessageDetailField("request_id", detail.request_id);
+  setMessageDetailField("parent_message_id", detail.parent_message_id);
+  setMessageDetailField("role", detail.role);
+  setMessageDetailField("direction", detail.direction);
+  setMessageDetailPre("content", detail.content);
+  setMessageDetailPre("tool_calls_json", formatJsonValue(detail.tool_calls_json));
+  setMessageDetailPre("raw_payload", formatJsonValue(detail.raw_payload));
+  renderRelatedMessages(detail.related_messages || []);
+}
+
+async function openMessageDetail(messageId) {
+  if (!messageId) return;
+  setMessageDrawerOpen(true);
+  resetMessageDetail(messageId);
+  setMessageDetailStatus("Loading message detail.");
+
+  const { response, body } = await fetchJson(
+    `${MESSAGE_API_PATH}/${encodeURIComponent(messageId)}`
+  );
+  if (response.status === 401) {
+    window.location.assign(LOGIN_PATH);
+    return;
+  }
+  if (!response.ok) {
+    setMessageDetailStatus(
+      response.status === 404 ? "Message detail was not found." : "Message detail unavailable."
+    );
+    return;
+  }
+  renderMessageDetail(body);
+}
+
+function handleMessageRowClick(event) {
+  const row = event.target.closest("[data-message-id]");
+  if (!row) return;
+  openMessageDetail(row.dataset.messageId);
+}
+
+function handleMessageRowKeydown(event) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const row = event.target.closest("[data-message-id]");
+  if (!row) return;
+  event.preventDefault();
+  openMessageDetail(row.dataset.messageId);
+}
+
+function handleRelatedMessageClick(event) {
+  const button = event.target.closest("[data-related-message-id]");
+  if (!button) return;
+  openMessageDetail(button.dataset.relatedMessageId);
+}
+
 function bindMessages() {
   const form = document.querySelector("[data-message-filters]");
   form?.addEventListener("submit", (event) => {
@@ -376,6 +525,19 @@ function bindMessages() {
   document.querySelector("[data-reset-message-filters]")?.addEventListener("click", () => {
     form.reset();
     loadMessages();
+  });
+  document.querySelector("[data-message-rows]")?.addEventListener("click", handleMessageRowClick);
+  document
+    .querySelector("[data-message-rows]")
+    ?.addEventListener("keydown", handleMessageRowKeydown);
+  document
+    .querySelector("[data-message-related-list]")
+    ?.addEventListener("click", handleRelatedMessageClick);
+  document.querySelectorAll("[data-close-message-detail]").forEach((target) => {
+    target.addEventListener("click", closeMessageDetail);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeMessageDetail();
   });
 }
 

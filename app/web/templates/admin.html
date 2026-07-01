@@ -271,6 +271,89 @@
               </tbody>
             </table>
           </section>
+
+          <aside
+            aria-labelledby="message-detail-title"
+            class="detail-drawer"
+            data-message-drawer
+            hidden
+          >
+            <div class="detail-drawer-backdrop" data-close-message-detail></div>
+            <section class="detail-drawer-panel" role="dialog" aria-modal="true">
+              <header class="detail-drawer-header">
+                <div>
+                  <p class="eyebrow">Message Detail</p>
+                  <h3 id="message-detail-title" data-message-detail-title>Message</h3>
+                </div>
+                <button
+                  aria-label="Close message detail"
+                  class="ghost-button icon-button"
+                  data-close-message-detail
+                  type="button"
+                >
+                  X
+                </button>
+              </header>
+
+              <p class="detail-status" data-message-detail-status role="status">
+                Select a message.
+              </p>
+
+              <section class="detail-section">
+                <h4>Identity</h4>
+                <dl class="detail-grid">
+                  <div>
+                    <dt>Agent</dt>
+                    <dd data-message-detail-field="agent_uid">-</dd>
+                  </div>
+                  <div>
+                    <dt>Session</dt>
+                    <dd data-message-detail-field="session_key">-</dd>
+                  </div>
+                  <div>
+                    <dt>Request</dt>
+                    <dd data-message-detail-field="request_id">-</dd>
+                  </div>
+                  <div>
+                    <dt>Parent</dt>
+                    <dd data-message-detail-field="parent_message_id">-</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section class="detail-section">
+                <h4>Message</h4>
+                <dl class="detail-grid compact">
+                  <div>
+                    <dt>Role</dt>
+                    <dd data-message-detail-field="role">-</dd>
+                  </div>
+                  <div>
+                    <dt>Direction</dt>
+                    <dd data-message-detail-field="direction">-</dd>
+                  </div>
+                </dl>
+                <pre class="detail-pre" data-message-detail-field="content"></pre>
+              </section>
+
+              <section class="detail-section">
+                <h4>Related Messages</h4>
+                <div class="related-message-list" data-message-related-list>
+                  <p>No related messages.</p>
+                </div>
+              </section>
+
+              <section class="detail-section">
+                <h4>Tool Calls</h4>
+                <pre class="detail-pre" data-message-detail-field="tool_calls_json"></pre>
+              </section>
+
+              <section class="detail-section">
+                <h4>Raw Payload</h4>
+                <pre class="detail-pre payload-pre" data-message-detail-field="raw_payload"></pre>
+              </section>
+            </section>
+          </aside>
         </section>
       </section>
     </main>

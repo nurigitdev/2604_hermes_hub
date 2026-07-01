@@ -1194,8 +1194,11 @@ Admin은 수집된 message를 검색하고 확인할 수 있어야 한다.
 v2.0 초기 Message Explorer Web View는 `/admin/messages`에서 제공한다. 화면은
 `/admin/api/messages`를 사용해 date range, agent_uid, owner email, source, role,
 event_type, keyword 필터를 적용하고, 목록에서 발생 시각, Agent, owner, source,
-role, event type, content preview를 확인할 수 있어야 한다. Message 상세 drawer는
-후속 slice에서 확장한다.
+role, event type, content preview를 확인할 수 있어야 한다. Message row 선택 시
+Message 상세 drawer가 열리고 `/admin/api/messages/{message_id}`를 사용해 본문,
+session, request/response 연결 정보, tool call JSON, raw payload JSON을 확인할 수
+있어야 한다. 상세 drawer의 related message 항목은 같은 drawer 안에서 재조회할 수
+있어야 한다.
 
 상세 화면:
 
