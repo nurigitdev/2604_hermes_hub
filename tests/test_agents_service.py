@@ -314,6 +314,22 @@ def test_authenticate_agent_api_token_rejects_inactive_api_token(db_session: Ses
         authenticate_agent_api_token(db_session, token=enrolled_agent.api_token)
 
 
+def test_authenticate_agent_api_token_rejects_expired_api_token(db_session: Session) -> None:
+    enrolled_agent = enroll_agent(
+        db_session,
+        enrollment_token=None,
+        profile_name="unknown-profile",
+        hostname="UNKNOWN-PC",
+        ip_addr="192.168.0.26",
+        source="collector",
+    )
+    enrolled_agent.api_token_record.expires_at = datetime(2026, 6, 28)
+    db_session.flush()
+
+    with pytest.raises(InvalidAgentTokenError):
+        authenticate_agent_api_token(db_session, token=enrolled_agent.api_token)
+
+
 def test_authenticate_agent_api_token_rejects_missing_agent_id(db_session: Session) -> None:
     token = "hub_api_without_agent"
     db_session.add(

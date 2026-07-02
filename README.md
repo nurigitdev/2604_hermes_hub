@@ -99,10 +99,14 @@ The first Admin screen is served directly by FastAPI:
 - Login: `http://127.0.0.1:8000/admin/login`
 - Dashboard: `http://127.0.0.1:8000/admin/dashboard`
 - Agent Registry: `http://127.0.0.1:8000/admin/agents`
+- Agent Token: `http://127.0.0.1:8000/admin/agent-tokens`
 - Message Explorer: `http://127.0.0.1:8000/admin/messages`
 
 The dashboard uses the existing admin session cookie and reads
 `/admin/api/dashboard/summary` for the first-screen metrics.
+The Agent Token page issues active Agent API tokens through `/admin/api/agent-tokens`.
+The issued Agent UID is the owner's email address, and Agents use the returned token as
+`Authorization: Bearer AGENT_TOKEN` for heartbeat, message ingest, and event ingest.
 The Message Explorer opens message rows in a detail drawer backed by
 `/admin/api/messages/{message_id}` so admins can inspect content, related
 request/response messages, tool calls, and raw payload JSON.

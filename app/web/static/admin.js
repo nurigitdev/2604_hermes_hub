@@ -1,12 +1,14 @@
 const LOGIN_PATH = "/admin/login";
 const DASHBOARD_PATH = "/admin/dashboard";
 const AGENTS_PATH = "/admin/agents";
+const AGENT_TOKENS_PATH = "/admin/agent-tokens";
 const MESSAGES_PATH = "/admin/messages";
 const MESSAGE_API_PATH = "/admin/api/messages";
 
 const PAGE_TITLES = {
   [DASHBOARD_PATH]: "Dashboard",
   [AGENTS_PATH]: "Agent Registry",
+  [AGENT_TOKENS_PATH]: "Agent Token",
   [MESSAGES_PATH]: "Message Explorer",
 };
 
@@ -57,6 +59,19 @@ function setLoginError(message) {
   if (!error) return;
   error.textContent = message;
   error.hidden = message === "";
+}
+
+function setTokenError(message) {
+  const error = document.querySelector("[data-token-error]");
+  if (!error) return;
+  error.textContent = message;
+  error.hidden = message === "";
+}
+
+function setTokenStatus(message) {
+  const status = document.querySelector("[data-token-status]");
+  if (!status) return;
+  status.textContent = message;
 }
 
 function bindLogin() {
@@ -158,6 +173,18 @@ function formatDateTime(value) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function padDatePart(number) {
+  return String(number).padStart(2, "0");
+}
+
+function formatDateInput(value) {
+  return [
+    value.getFullYear(),
+    padDatePart(value.getMonth() + 1),
+    padDatePart(value.getDate()),
+  ].join("-");
 }
 
 function displayValue(value) {
@@ -324,14 +351,160 @@ function bindAgents() {
   document.querySelector("[data-agent-rows]")?.addEventListener("click", handleAgentAction);
 }
 
+function renderIssuedToken(token) {
+  const result = document.querySelector("[data-token-result]");
+  if (!result) return;
+  result.hidden = false;
+  document.querySelector("[data-token-owner]").textContent = token.owner_email;
+  document.querySelector("[data-token-agent-uid]").textContent = token.agent_uid;
+  document.querySelector("[data-issued-token]").textContent = token.token;
+  document.querySelector("[data-token-type]").textContent = token.token_type;
+  document.querySelector("[data-token-expires]").textContent = displayValue(
+    token.expires_at ? formatDateTime(token.expires_at) : null
+  );
+  setTokenStatus("Agent token issued.");
+}
+
+async function issueAgentToken(form) {
+  const formData = new FormData(form);
+  const ownerEmail = String(formData.get("owner_email") || "").trim();
+  const expiresAt = String(formData.get("expires_at") || "").trim();
+  const payload = { owner_email: ownerEmail };
+  if (expiresAt) payload.expires_at = expiresAt;
+
+  const { response, body } = await postJson("/admin/api/agent-tokens", payload);
+  if (response.status === 401) {
+    window.location.assign(LOGIN_PATH);
+    return;
+  }
+  if (!response.ok) {
+    setTokenError("Agent token issue failed.");
+    setTokenStatus("Token was not issued.");
+    return;
+  }
+
+  setTokenError("");
+  renderIssuedToken(body);
+}
+
+async function copyIssuedToken() {
+  const token = document.querySelector("[data-issued-token]")?.textContent || "";
+  if (!token) return;
+  try {
+    await navigator.clipboard.writeText(token);
+    setTokenStatus("Agent token copied.");
+  } catch {
+    setTokenStatus("Copy unavailable. Select the token value.");
+  }
+}
+
+function bindAgentTokens() {
+  const form = document.querySelector("[data-agent-token-form]");
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    setTokenError("");
+    setTokenStatus("Issuing agent token.");
+    const submitButton = form.querySelector("button[type='submit']");
+    submitButton.disabled = true;
+    await issueAgentToken(form);
+    submitButton.disabled = false;
+  });
+  document.querySelector("[data-reset-agent-token-form]")?.addEventListener("click", () => {
+    form?.reset();
+    document.querySelector("[data-token-result]").hidden = true;
+    setTokenError("");
+    setTokenStatus("Waiting for agent token issue.");
+  });
+  document.querySelector("[data-copy-issued-token]")?.addEventListener("click", copyIssuedToken);
+}
+
 function messageFilterQuery() {
   const form = document.querySelector("[data-message-filters]");
   const params = new URLSearchParams({ limit: "50", offset: "0" });
+  syncMessageDateRanges();
   new FormData(form).forEach((value, key) => {
     const text = String(value).trim();
     if (text) params.set(key, text);
   });
   return params;
+}
+
+function populateTimeSelect(select, maxValue) {
+  if (!select || select.options.length > 0) return;
+  for (let value = 0; value <= maxValue; value += 1) {
+    const option = document.createElement("option");
+    option.value = padDatePart(value);
+    option.textContent = padDatePart(value);
+    select.append(option);
+  }
+}
+
+function initializeMessageDateRangeControls() {
+  const form = document.querySelector("[data-message-filters]");
+  if (!form) return;
+
+  ["date_from", "date_to"].forEach((name) => {
+    populateTimeSelect(form.querySelector(`[data-time-hour="${name}"]`), 23);
+    populateTimeSelect(form.querySelector(`[data-time-minute="${name}"]`), 59);
+    populateTimeSelect(form.querySelector(`[data-time-second="${name}"]`), 59);
+  });
+
+  form
+    .querySelectorAll("[data-date-part], [data-time-hour], [data-time-minute], [data-time-second]")
+    .forEach((control) => {
+      control.addEventListener("change", () => {
+        syncMessageDateRange(
+          control.dataset.datePart ||
+            control.dataset.timeHour ||
+            control.dataset.timeMinute ||
+            control.dataset.timeSecond
+        );
+      });
+    });
+}
+
+function setMessageDateRangeValue(name, value) {
+  const form = document.querySelector("[data-message-filters]");
+  if (!form) return;
+  const dateInput = form.querySelector(`[data-date-part="${name}"]`);
+  const hourSelect = form.querySelector(`[data-time-hour="${name}"]`);
+  const minuteSelect = form.querySelector(`[data-time-minute="${name}"]`);
+  const secondSelect = form.querySelector(`[data-time-second="${name}"]`);
+
+  dateInput.value = formatDateInput(value);
+  hourSelect.value = padDatePart(value.getHours());
+  minuteSelect.value = padDatePart(value.getMinutes());
+  secondSelect.value = padDatePart(value.getSeconds());
+  syncMessageDateRange(name);
+}
+
+function syncMessageDateRange(name) {
+  const form = document.querySelector("[data-message-filters]");
+  if (!form) return;
+  const dateInput = form.querySelector(`[data-date-part="${name}"]`);
+  const hiddenInput = form.querySelector(`[data-date-range-value="${name}"]`);
+  const hourValue = form.querySelector(`[data-time-hour="${name}"]`)?.value;
+  const minuteValue = form.querySelector(`[data-time-minute="${name}"]`)?.value;
+  const secondValue = form.querySelector(`[data-time-second="${name}"]`)?.value;
+
+  hiddenInput.value =
+    dateInput.value && hourValue && minuteValue && secondValue
+      ? `${dateInput.value}T${hourValue}:${minuteValue}:${secondValue}`
+      : "";
+}
+
+function syncMessageDateRanges() {
+  syncMessageDateRange("date_from");
+  syncMessageDateRange("date_to");
+}
+
+function setDefaultMessageDateRange() {
+  const form = document.querySelector("[data-message-filters]");
+  if (!form) return;
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0);
+  setMessageDateRangeValue("date_from", todayStart);
+  setMessageDateRangeValue("date_to", now);
 }
 
 function renderMessages(items) {
@@ -532,12 +705,15 @@ function handleRelatedMessageClick(event) {
 
 function bindMessages() {
   const form = document.querySelector("[data-message-filters]");
+  initializeMessageDateRangeControls();
+  setDefaultMessageDateRange();
   form?.addEventListener("submit", (event) => {
     event.preventDefault();
     loadMessages();
   });
   document.querySelector("[data-reset-message-filters]")?.addEventListener("click", () => {
     form.reset();
+    setDefaultMessageDateRange();
     loadMessages();
   });
   document.querySelector("[data-message-rows]")?.addEventListener("click", handleMessageRowClick);
@@ -560,6 +736,10 @@ async function refreshCurrentPage() {
     await loadAgents();
     return;
   }
+  if (window.location.pathname === AGENT_TOKENS_PATH) {
+    setTokenStatus("Waiting for agent token issue.");
+    return;
+  }
   if (window.location.pathname === MESSAGES_PATH) {
     await loadMessages();
     return;
@@ -572,11 +752,14 @@ async function bindApp() {
   const pageName =
     window.location.pathname === AGENTS_PATH
       ? "agents"
-      : window.location.pathname === MESSAGES_PATH
+      : window.location.pathname === AGENT_TOKENS_PATH
+        ? "agent-tokens"
+        : window.location.pathname === MESSAGES_PATH
         ? "messages"
         : "dashboard";
   setActivePage(pageName);
   bindAgents();
+  bindAgentTokens();
   bindMessages();
   document.querySelector("[data-refresh-dashboard]")?.addEventListener("click", refreshCurrentPage);
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {

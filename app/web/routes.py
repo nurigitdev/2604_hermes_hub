@@ -35,6 +35,16 @@ def admin_agents() -> FileResponse:
     return FileResponse(ADMIN_SHELL_PATH)
 
 
+@router.get("/admin/agent-tokens")
+def admin_agent_tokens() -> FileResponse:
+    return FileResponse(ADMIN_SHELL_PATH)
+
+
+@router.get("/admin/enrollment")
+def admin_enrollment() -> RedirectResponse:
+    return RedirectResponse(url="/admin/agent-tokens", status_code=307)
+
+
 @router.get("/admin/messages")
 def admin_messages() -> FileResponse:
     return FileResponse(ADMIN_SHELL_PATH)

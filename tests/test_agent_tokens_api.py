@@ -5,8 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.core.tokens import ENROLLMENT_TOKEN_PREFIX, hash_token
+from app.core.tokens import API_TOKEN_PREFIX, hash_token
 from app.models.agent_token import AgentToken
+from app.models.hermes_agent import HermesAgent
 from app.services.admin_seed import seed_admin_user
 
 
@@ -37,6 +38,26 @@ async def issue_token_without_login(app: FastAPI) -> httpx.Response:
         )
 
 
+async def post_heartbeat(
+    app: FastAPI,
+    agent_uid: str,
+    api_token: str,
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        return await client.post(
+            "/api/v1/agents/heartbeat",
+            json={
+                "agent_uid": agent_uid,
+                "profile_name": "hermes-cli",
+                "source": "cli",
+                "ip_addr": "127.0.0.1",
+                "runtime_status": "running",
+            },
+            headers={"Authorization": f"Bearer {api_token}"},
+        )
+
+
 def seed_admin(db_session: Session) -> None:
     settings = Settings(
         admin_email="admin@example.com",
@@ -46,7 +67,7 @@ def seed_admin(db_session: Session) -> None:
     seed_admin_user(db_session, settings)
 
 
-def test_admin_can_issue_enrollment_token(test_app: FastAPI, db_session: Session) -> None:
+def test_admin_can_issue_agent_api_token(test_app: FastAPI, db_session: Session) -> None:
     seed_admin(db_session)
 
     response = anyio.run(
@@ -59,13 +80,14 @@ def test_admin_can_issue_enrollment_token(test_app: FastAPI, db_session: Session
     body = response.json()
     assert response.status_code == 200
     assert body["ok"] is True
-    assert body["token"].startswith(ENROLLMENT_TOKEN_PREFIX)
-    assert body["token_type"] == "ENROLLMENT"
+    assert body["agent_uid"] == "agent.owner@example.com"
+    assert body["token"].startswith(API_TOKEN_PREFIX)
+    assert body["token_type"] == "API"
     assert body["owner_email"] == "agent.owner@example.com"
     assert body["expires_at"] == "2026-07-25T23:59:59Z"
 
 
-def test_issued_enrollment_token_stores_hash_only(
+def test_issued_agent_api_token_stores_hash_only_and_creates_email_agent(
     test_app: FastAPI,
     db_session: Session,
 ) -> None:
@@ -79,22 +101,55 @@ def test_issued_enrollment_token_stores_hash_only(
 
     token = response.json()["token"]
     records = db_session.scalars(select(AgentToken)).all()
+    agent = db_session.scalar(select(HermesAgent))
 
     assert len(records) == 1
     assert records[0].token_hash == hash_token(token)
     assert records[0].token_hash != token
+    assert records[0].token_type == "API"
+    assert records[0].scope == "AGENT_ACTIVE"
     assert records[0].owner_email == "agent.owner@example.com"
+    assert records[0].agent_id is not None
     assert records[0].expires_at is None
+    assert agent is not None
+    assert agent.id == records[0].agent_id
+    assert agent.agent_uid == "agent.owner@example.com"
+    assert agent.owner_email == "agent.owner@example.com"
+    assert agent.status == "ACTIVE"
 
 
-def test_issue_enrollment_token_requires_admin_session(test_app: FastAPI) -> None:
+def test_issued_agent_api_token_can_authenticate_agent_heartbeat(
+    test_app: FastAPI,
+    db_session: Session,
+) -> None:
+    seed_admin(db_session)
+    issue_response = anyio.run(login_and_issue_token, test_app, "agent.owner@example.com")
+    issue_body = issue_response.json()
+
+    response = anyio.run(
+        post_heartbeat,
+        test_app,
+        issue_body["agent_uid"],
+        issue_body["token"],
+    )
+
+    agent = db_session.scalar(select(HermesAgent))
+    assert response.status_code == 200
+    assert response.json()["agent_uid"] == "agent.owner@example.com"
+    assert agent is not None
+    assert agent.profile_name == "hermes-cli"
+    assert agent.source == "cli"
+    assert agent.last_heartbeat_status == "running"
+
+
+def test_issue_agent_api_token_requires_admin_session(test_app: FastAPI) -> None:
     response = anyio.run(issue_token_without_login, test_app)
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Authentication required"}
 
 
-def test_issue_enrollment_token_validates_owner_email(
+def test_issue_agent_api_token_validates_owner_email(
     test_app: FastAPI,
     db_session: Session,
 ) -> None:

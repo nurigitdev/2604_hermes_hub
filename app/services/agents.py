@@ -122,6 +122,8 @@ def authenticate_agent_api_token(session: Session, *, token: str) -> Authenticat
         raise InvalidAgentTokenError
     if not token_record.is_active:
         raise InvalidAgentTokenError
+    if is_expired(token_record.expires_at):
+        raise InvalidAgentTokenError
     if token_record.agent_id is None:
         raise InvalidAgentTokenError
     if token_record.scope not in HEARTBEAT_ALLOWED_SCOPES:

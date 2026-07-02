@@ -58,6 +58,7 @@
         <nav class="nav-list" aria-label="Admin navigation">
           <a class="nav-item" data-nav="dashboard" href="/admin/dashboard">Dashboard</a>
           <a class="nav-item" data-nav="agents" href="/admin/agents">Agents</a>
+          <a class="nav-item" data-nav="agent-tokens" href="/admin/agent-tokens">Agent Token</a>
           <a class="nav-item" data-nav="messages" href="/admin/messages">Messages</a>
           <button class="nav-item" disabled type="button">Events</button>
         </nav>
@@ -197,24 +198,103 @@
           </section>
         </section>
 
+        <section class="agent-token-page" data-page="agent-tokens" hidden>
+          <h2 class="visually-hidden">Agent Token</h2>
+
+          <section class="agent-token-layout" aria-label="Agent token issue">
+            <form class="token-form" data-agent-token-form>
+              <label>
+                Agent UID / owner email
+                <input
+                  autocomplete="email"
+                  name="owner_email"
+                  placeholder="agent.owner@example.com"
+                  required
+                  type="email"
+                />
+              </label>
+              <label>
+                Expires at
+                <input name="expires_at" type="datetime-local" />
+              </label>
+              <div class="filter-actions">
+                <button class="primary-button" type="submit">Issue token</button>
+                <button class="secondary-button" data-reset-agent-token-form type="button">
+                  Reset
+                </button>
+              </div>
+            </form>
+
+            <section class="token-result" aria-live="polite" data-token-result hidden>
+              <div>
+                <p class="eyebrow">Agent token</p>
+                <strong data-token-owner>-</strong>
+              </div>
+              <div class="token-value-row">
+                <code data-issued-token></code>
+                <button class="secondary-button" data-copy-issued-token type="button">Copy</button>
+              </div>
+              <dl class="token-meta">
+                <div>
+                  <dt>Agent UID</dt>
+                  <dd data-token-agent-uid>-</dd>
+                </div>
+                <div>
+                  <dt>Type</dt>
+                  <dd data-token-type>-</dd>
+                </div>
+                <div>
+                  <dt>Expires</dt>
+                  <dd data-token-expires>-</dd>
+                </div>
+              </dl>
+            </section>
+
+            <p class="form-error" data-token-error role="alert" hidden></p>
+            <p class="detail-status" data-token-status role="status">Waiting for agent token issue.</p>
+          </section>
+        </section>
+
         <section class="messages-page" data-page="messages" hidden>
           <h2 class="visually-hidden">Message Explorer</h2>
           <form class="filter-bar message-filter-bar" data-message-filters>
-            <label>
-              From
-              <input name="date_from" type="datetime-local" />
-            </label>
-            <label>
-              To
-              <input name="date_to" type="datetime-local" />
-            </label>
+            <div class="datetime-field" data-date-range="date_from">
+              <label for="message-date-from-date">From</label>
+              <input
+                aria-label="From date"
+                data-date-part="date_from"
+                id="message-date-from-date"
+                type="date"
+              />
+              <div class="time-select-row" aria-label="From time">
+                <select aria-label="From hour" data-time-hour="date_from"></select>
+                <span>:</span>
+                <select aria-label="From minute" data-time-minute="date_from"></select>
+                <span>:</span>
+                <select aria-label="From second" data-time-second="date_from"></select>
+              </div>
+              <input data-date-range-value="date_from" name="date_from" type="hidden" />
+            </div>
+            <div class="datetime-field" data-date-range="date_to">
+              <label for="message-date-to-date">To</label>
+              <input
+                aria-label="To date"
+                data-date-part="date_to"
+                id="message-date-to-date"
+                type="date"
+              />
+              <div class="time-select-row" aria-label="To time">
+                <select aria-label="To hour" data-time-hour="date_to"></select>
+                <span>:</span>
+                <select aria-label="To minute" data-time-minute="date_to"></select>
+                <span>:</span>
+                <select aria-label="To second" data-time-second="date_to"></select>
+              </div>
+              <input data-date-range-value="date_to" name="date_to" type="hidden" />
+            </div>
             <label>
               Agent UID
               <input name="agent_uid" placeholder="agent_..." type="text" />
-            </label>
-            <label>
-              Owner
-              <input name="owner_email" placeholder="owner@example.com" type="email" />
             </label>
             <label>
               Source

@@ -10,6 +10,7 @@ class AgentTokenCreateRequest(BaseModel):
 
 class AgentTokenCreateResponse(BaseModel):
     ok: bool
+    agent_uid: str
     token: str
     token_type: str
     owner_email: EmailStr

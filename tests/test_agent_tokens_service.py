@@ -3,11 +3,15 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.tokens import ENROLLMENT_TOKEN_PREFIX, hash_token
+from app.core.tokens import API_TOKEN_PREFIX, ENROLLMENT_TOKEN_PREFIX, hash_token
 from app.models.agent_token import AgentToken
+from app.models.hermes_agent import HermesAgent
 from app.services.agent_tokens import (
+    AGENT_ACTIVE_SCOPE,
+    API_TOKEN_TYPE,
     ENROLL_AGENT_SCOPE,
     ENROLLMENT_TOKEN_TYPE,
+    issue_agent_api_token,
     issue_enrollment_token,
 )
 
@@ -46,3 +50,71 @@ def test_issue_enrollment_token_persists_record(db_session: Session) -> None:
 
     assert record is not None
     assert record.owner_email == "agent.owner@example.com"
+
+
+def test_issue_agent_api_token_creates_email_agent_and_active_token(
+    db_session: Session,
+) -> None:
+    expires_at = datetime(2026, 7, 25, 23, 59, 59, tzinfo=UTC)
+
+    issued_token = issue_agent_api_token(
+        db_session,
+        owner_email="Agent.Owner@Example.com",
+        expires_at=expires_at,
+    )
+
+    agent = db_session.scalar(select(HermesAgent))
+
+    assert issued_token.token.startswith(API_TOKEN_PREFIX)
+    assert issued_token.record.id is not None
+    assert issued_token.record.token_hash == hash_token(issued_token.token)
+    assert issued_token.record.token_type == API_TOKEN_TYPE
+    assert issued_token.record.scope == AGENT_ACTIVE_SCOPE
+    assert issued_token.record.owner_email == "agent.owner@example.com"
+    assert issued_token.record.expires_at == expires_at.replace(tzinfo=None)
+    assert issued_token.record.agent_id is not None
+    assert agent is not None
+    assert agent.id == issued_token.record.agent_id
+    assert agent.agent_uid == "agent.owner@example.com"
+    assert agent.profile_name == "agent.owner@example.com"
+    assert agent.owner_email == "agent.owner@example.com"
+    assert agent.status == "ACTIVE"
+
+
+def test_issue_agent_api_token_reuses_email_agent(db_session: Session) -> None:
+    first = issue_agent_api_token(db_session, owner_email="agent.owner@example.com")
+    second = issue_agent_api_token(db_session, owner_email="agent.owner@example.com")
+
+    agents = db_session.scalars(select(HermesAgent)).all()
+    records = db_session.scalars(select(AgentToken).order_by(AgentToken.id)).all()
+
+    assert len(agents) == 1
+    assert len(records) == 2
+    assert records[0].agent_id == first.record.agent_id
+    assert records[1].agent_id == second.record.agent_id
+    assert first.token != second.token
+
+
+def test_issue_agent_api_token_sets_missing_display_name_on_existing_agent(
+    db_session: Session,
+) -> None:
+    agent = HermesAgent(
+        agent_uid="agent.owner@example.com",
+        profile_name="legacy-profile",
+        display_name=None,
+        owner_email=None,
+        hostname="LEGACY-PC",
+        ip_addr="127.0.0.1",
+        source="legacy",
+        status="DISABLED",
+    )
+    db_session.add(agent)
+    db_session.flush()
+
+    issued_token = issue_agent_api_token(db_session, owner_email="agent.owner@example.com")
+
+    db_session.refresh(agent)
+    assert issued_token.record.agent_id == agent.id
+    assert agent.display_name == "agent.owner@example.com"
+    assert agent.owner_email == "agent.owner@example.com"
+    assert agent.status == "ACTIVE"

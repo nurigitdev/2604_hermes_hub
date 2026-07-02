@@ -54,8 +54,29 @@ def test_admin_agents_serves_web_shell(test_app: FastAPI) -> None:
     assert "Agent Registry" in response.text
 
 
+def test_admin_agent_tokens_serves_web_shell(test_app: FastAPI) -> None:
+    response = anyio.run(get_path, test_app, "/admin/agent-tokens")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert 'data-page="agent-tokens"' in response.text
+    assert "Agent Token" in response.text
+    assert 'data-agent-token-form' in response.text
+
+
+def test_admin_enrollment_redirects_to_agent_tokens(test_app: FastAPI) -> None:
+    response = anyio.run(get_path, test_app, "/admin/enrollment")
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/admin/agent-tokens"
+
+
 def test_admin_messages_serves_web_shell(test_app: FastAPI) -> None:
     response = anyio.run(get_path, test_app, "/admin/messages")
+    message_form = response.text.split('data-message-filters>', maxsplit=1)[1].split(
+        "</form>",
+        maxsplit=1,
+    )[0]
 
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
@@ -63,6 +84,12 @@ def test_admin_messages_serves_web_shell(test_app: FastAPI) -> None:
     assert 'data-message-drawer' in response.text
     assert "Raw Payload" in response.text
     assert "Message Explorer" in response.text
+    assert 'name="date_from"' in message_form
+    assert 'name="date_to"' in message_form
+    assert 'data-time-hour="date_from"' in message_form
+    assert 'data-time-hour="date_to"' in message_form
+    assert 'type="hidden"' in message_form
+    assert 'name="owner_email"' not in message_form
 
 
 def test_admin_static_assets_are_served(test_app: FastAPI) -> None:
@@ -72,3 +99,6 @@ def test_admin_static_assets_are_served(test_app: FastAPI) -> None:
     assert "loadMessages" in response.text
     assert "openMessageDetail" in response.text
     assert "data-related-message-id" in response.text
+    assert "issueAgentToken" in response.text
+    assert "/admin/api/agent-tokens" in response.text
+    assert "setDefaultMessageDateRange" in response.text
