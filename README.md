@@ -33,6 +33,17 @@ SQLite file URLs are used for local development and tests:
 Coverage targets are progressive goals for v2.0. They are measured and reported first,
 not used as hard commit blockers during the initial slices.
 
+## CI Baseline
+
+GitHub Actions runs the baseline CI workflow on push and pull request events.
+The workflow installs the project with `.[dev]`, runs Ruff, runs pytest with
+statement and branch coverage, and publishes a coverage summary to the Actions
+job summary.
+
+The v2.0 CI quality gate starts at Level 0 report-only mode. Test failures still
+fail the workflow, but coverage targets are reported for visibility before they
+become merge-blocking thresholds.
+
 ## Run Locally
 
 ```bash

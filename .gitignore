@@ -5,6 +5,7 @@ __pycache__/
 .env.*
 !.env.example
 .coverage
+coverage.json
 data/
 htmlcov/
 .pytest_cache/

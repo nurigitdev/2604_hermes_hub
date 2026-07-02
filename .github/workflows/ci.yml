@@ -4,10 +4,18 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test and lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
@@ -20,10 +28,63 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: python -m pip install -e ".[dev]"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
 
       - name: Run lint
-        run: ruff check .
+        run: python -m ruff check .
 
       - name: Run tests with coverage
-        run: pytest --cov=app --cov-branch --cov-report=term-missing
+        run: >
+          python -m pytest
+          --cov=app
+          --cov-branch
+          --cov-report=term-missing
+          --cov-report=json:coverage.json
+
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary_path = Path("coverage.json")
+          github_summary = Path(__import__("os").environ["GITHUB_STEP_SUMMARY"])
+
+          if not summary_path.exists():
+              github_summary.write_text(
+                  "## Coverage\n\nCoverage report was not generated.\n",
+                  encoding="utf-8",
+              )
+              raise SystemExit(0)
+
+          totals = json.loads(summary_path.read_text(encoding="utf-8"))["totals"]
+          statements = totals["num_statements"]
+          covered_statements = totals["covered_lines"]
+          branches = totals["num_branches"]
+          covered_branches = totals["covered_branches"]
+          statement_percent = (covered_statements / statements * 100) if statements else 100.0
+          branch_percent = (covered_branches / branches * 100) if branches else 100.0
+
+          github_summary.write_text(
+              "\n".join(
+                  [
+                      "## CI Coverage",
+                      "",
+                      "| Metric | Covered | Total | Percent |",
+                      "|---|---:|---:|---:|",
+                      (
+                          f"| Statement | {covered_statements} | {statements} | "
+                          f"{statement_percent:.2f}% |"
+                      ),
+                      f"| Branch | {covered_branches} | {branches} | {branch_percent:.2f}% |",
+                      "",
+                      "Quality gate mode: Level 0 report-only baseline.",
+                      "",
+                  ]
+              ),
+              encoding="utf-8",
+          )
+          PY
