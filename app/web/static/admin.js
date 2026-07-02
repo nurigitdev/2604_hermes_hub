@@ -365,6 +365,69 @@ function renderIssuedToken(token) {
   setTokenStatus("Agent token issued.");
 }
 
+function agentTokenStatus(token) {
+  if (!token.is_active) return "INACTIVE";
+  if (token.expires_at && new Date(token.expires_at) <= new Date()) return "EXPIRED";
+  return "ACTIVE";
+}
+
+function renderAgentTokens(items) {
+  const rows = document.querySelector("[data-token-rows]");
+  if (!rows) return;
+  if (items.length === 0) {
+    rows.innerHTML = '<tr><td colspan="5">No agent tokens have been issued.</td></tr>';
+    return;
+  }
+
+  rows.innerHTML = items
+    .map((token) => {
+      const status = agentTokenStatus(token);
+      return `
+        <tr>
+          <td data-label="Agent">
+            <div class="cell-stack">
+              <strong>${escapeHtml(token.agent_uid || "-")}</strong>
+              <span>${escapeHtml(token.owner_email || "-")}</span>
+            </div>
+          </td>
+          <td data-label="Scope">
+            <div class="cell-stack">
+              <strong>${escapeHtml(token.scope)}</strong>
+              <span>${escapeHtml(token.token_type)}</span>
+            </div>
+          </td>
+          <td data-label="Status">
+            <span class="${agentStatusClass(status)}">${escapeHtml(status)}</span>
+          </td>
+          <td data-label="Expires">${escapeHtml(formatDateTime(token.expires_at))}</td>
+          <td data-label="Created">${escapeHtml(formatDateTime(token.created_at))}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+async function loadAgentTokens() {
+  const status = document.querySelector("[data-token-list-status]");
+  if (status) status.textContent = "Loading issued tokens.";
+  const { response, body } = await fetchJson("/admin/api/agent-tokens?limit=50&offset=0");
+  if (response.status === 401) {
+    window.location.assign(LOGIN_PATH);
+    return;
+  }
+  if (!response.ok) {
+    if (status) status.textContent = "Issued token list unavailable.";
+    return;
+  }
+
+  document.querySelector("[data-token-count]").textContent = String(body.total);
+  if (status) {
+    status.textContent =
+      body.total === 1 ? "1 issued token." : `${body.total} issued tokens.`;
+  }
+  renderAgentTokens(body.items || []);
+}
+
 async function issueAgentToken(form) {
   const formData = new FormData(form);
   const ownerEmail = String(formData.get("owner_email") || "").trim();
@@ -385,6 +448,7 @@ async function issueAgentToken(form) {
 
   setTokenError("");
   renderIssuedToken(body);
+  await loadAgentTokens();
 }
 
 async function copyIssuedToken() {
@@ -738,6 +802,7 @@ async function refreshCurrentPage() {
   }
   if (window.location.pathname === AGENT_TOKENS_PATH) {
     setTokenStatus("Waiting for agent token issue.");
+    await loadAgentTokens();
     return;
   }
   if (window.location.pathname === MESSAGES_PATH) {

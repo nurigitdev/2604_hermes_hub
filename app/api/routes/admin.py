@@ -7,8 +7,13 @@ from app.api.dependencies import get_current_admin
 from app.db.session import get_db_session
 from app.models.user import User
 from app.schemas.admin import CurrentAdminResponse
-from app.schemas.agent_token import AgentTokenCreateRequest, AgentTokenCreateResponse
-from app.services.agent_tokens import issue_agent_api_token
+from app.schemas.agent_token import (
+    AgentTokenCreateRequest,
+    AgentTokenCreateResponse,
+    AgentTokenListItem,
+    AgentTokenListResponse,
+)
+from app.services.agent_tokens import AgentApiTokenRow, issue_agent_api_token, list_agent_api_tokens
 
 router = APIRouter(prefix="/admin/api", tags=["admin"])
 
@@ -41,4 +46,33 @@ def create_agent_token(
         token_type=issued_token.record.token_type,
         owner_email=issued_token.record.owner_email,
         expires_at=request.expires_at,
+    )
+
+
+@router.get("/agent-tokens", response_model=AgentTokenListResponse)
+def list_agent_tokens(
+    _current_admin: Annotated[User, Depends(get_current_admin)],
+    session: Annotated[Session, Depends(get_db_session)],
+    limit: int = 50,
+    offset: int = 0,
+) -> AgentTokenListResponse:
+    result = list_agent_api_tokens(session, limit=limit, offset=offset)
+    return AgentTokenListResponse(
+        items=[agent_token_row_to_item(row) for row in result.items],
+        total=result.total,
+    )
+
+
+def agent_token_row_to_item(row: AgentApiTokenRow) -> AgentTokenListItem:
+    token = row.token
+    return AgentTokenListItem(
+        id=token.id,
+        agent_uid=row.agent_uid,
+        owner_email=token.owner_email,
+        token_type=token.token_type,
+        scope=token.scope,
+        agent_status=row.agent_status,
+        is_active=token.is_active,
+        expires_at=token.expires_at,
+        created_at=token.created_at,
     )

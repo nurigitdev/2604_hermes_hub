@@ -444,7 +444,7 @@ select:focus {
 
 .agent-token-layout {
   display: grid;
-  max-width: 860px;
+  max-width: 1040px;
   gap: 16px;
   margin-top: 18px;
 }
@@ -586,6 +586,12 @@ select:focus {
   color: var(--muted);
 }
 
+.status-expired,
+.status-inactive {
+  background: #f7e7e3;
+  color: var(--danger);
+}
+
 .row-actions {
   display: grid;
   max-width: 420px;
@@ -605,6 +611,14 @@ select:focus {
 
 .message-table {
   min-width: 1080px;
+}
+
+.token-table {
+  min-width: 780px;
+}
+
+.token-table td {
+  overflow-wrap: anywhere;
 }
 
 .role-badge,

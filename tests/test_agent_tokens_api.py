@@ -38,6 +38,22 @@ async def issue_token_without_login(app: FastAPI) -> httpx.Response:
         )
 
 
+async def list_tokens_after_login(app: FastAPI) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        await client.post(
+            "/auth/login",
+            json={"email": "admin@example.com", "password": "change-me-admin-password"},
+        )
+        return await client.get("/admin/api/agent-tokens")
+
+
+async def list_tokens_without_login(app: FastAPI) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        return await client.get("/admin/api/agent-tokens")
+
+
 async def post_heartbeat(
     app: FastAPI,
     agent_uid: str,
@@ -142,8 +158,44 @@ def test_issued_agent_api_token_can_authenticate_agent_heartbeat(
     assert agent.last_heartbeat_status == "running"
 
 
+def test_admin_can_list_issued_agent_api_tokens_without_secret_values(
+    test_app: FastAPI,
+    db_session: Session,
+) -> None:
+    seed_admin(db_session)
+    first_response = anyio.run(login_and_issue_token, test_app, "first.owner@example.com")
+    second_response = anyio.run(login_and_issue_token, test_app, "second.owner@example.com")
+
+    response = anyio.run(list_tokens_after_login, test_app)
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body["total"] == 2
+    assert [item["agent_uid"] for item in body["items"]] == [
+        "second.owner@example.com",
+        "first.owner@example.com",
+    ]
+    assert body["items"][0]["owner_email"] == "second.owner@example.com"
+    assert body["items"][0]["token_type"] == "API"
+    assert body["items"][0]["scope"] == "AGENT_ACTIVE"
+    assert body["items"][0]["agent_status"] == "ACTIVE"
+    assert body["items"][0]["is_active"] is True
+    assert body["items"][0]["created_at"] is not None
+    assert "token" not in body["items"][0]
+    assert "token_hash" not in body["items"][0]
+    assert first_response.json()["token"] not in response.text
+    assert second_response.json()["token"] not in response.text
+
+
 def test_issue_agent_api_token_requires_admin_session(test_app: FastAPI) -> None:
     response = anyio.run(issue_token_without_login, test_app)
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Authentication required"}
+
+
+def test_list_agent_api_tokens_requires_admin_session(test_app: FastAPI) -> None:
+    response = anyio.run(list_tokens_without_login, test_app)
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Authentication required"}

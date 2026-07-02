@@ -62,6 +62,8 @@ def test_admin_agent_tokens_serves_web_shell(test_app: FastAPI) -> None:
     assert 'data-page="agent-tokens"' in response.text
     assert "Agent Token" in response.text
     assert 'data-agent-token-form' in response.text
+    assert 'data-token-rows' in response.text
+    assert "Issued agent tokens" in response.text
 
 
 def test_admin_enrollment_redirects_to_agent_tokens(test_app: FastAPI) -> None:
@@ -100,5 +102,6 @@ def test_admin_static_assets_are_served(test_app: FastAPI) -> None:
     assert "openMessageDetail" in response.text
     assert "data-related-message-id" in response.text
     assert "issueAgentToken" in response.text
+    assert "loadAgentTokens" in response.text
     assert "/admin/api/agent-tokens" in response.text
     assert "setDefaultMessageDateRange" in response.text

@@ -252,6 +252,30 @@
 
             <p class="form-error" data-token-error role="alert" hidden></p>
             <p class="detail-status" data-token-status role="status">Waiting for agent token issue.</p>
+
+            <section class="registry-summary" aria-label="Agent token list status">
+              <strong><span data-token-count>0</span> tokens</strong>
+              <span data-token-list-status>Waiting for issued tokens.</span>
+            </section>
+
+            <section class="table-wrap" aria-label="Issued agent tokens">
+              <table class="data-table token-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Agent</th>
+                    <th scope="col">Scope</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Expires</th>
+                    <th scope="col">Created</th>
+                  </tr>
+                </thead>
+                <tbody data-token-rows>
+                  <tr>
+                    <td colspan="5">Loading issued tokens.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
           </section>
         </section>
 
